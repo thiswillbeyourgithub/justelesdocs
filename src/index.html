@@ -92,9 +92,13 @@
              (page@10 0.39 against 0.70 and 0.85). Stating only the first half would
              leave a reader concluding the corpus has nothing on their question. -->
         <p data-i18n="syntax_language"></p>
+        <!-- Every example is a link to its own results (app.js: wireExamples), so a
+             reader can see what a question brings back before writing their own. -->
+        <p data-i18n="syntax_examples_title"></p>
+        <ul id="syntax-examples"></ul>
         <ul>
-          <li><code data-i18n="syntax_example_minus"></code> <span data-i18n="syntax_minus"></span></li>
-          <li><code data-i18n="syntax_example_or"></code> <span data-i18n="syntax_or"></span></li>
+          <li><a class="example-q" data-example="syntax_example_minus"><code data-i18n="syntax_example_minus"></code></a> <span data-i18n="syntax_minus"></span></li>
+          <li><a class="example-q" data-example="syntax_example_or"><code data-i18n="syntax_example_or"></code></a> <span data-i18n="syntax_or"></span></li>
         </ul>
       </div>
     </details>

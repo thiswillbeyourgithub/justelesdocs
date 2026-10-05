@@ -78,6 +78,11 @@ const STRINGS = {
     // nothing on this", which is the one wrong conclusion this page can cause.
     syntax_language: "La recherche traverse les langues : une question dans une langue peut ramener un passage dans une autre. Le modèle reste bien meilleur dans la langue du document, alors posez la question dans la langue des documents que vous visez.",
     syntax_context: "Écrivez les sigles en toutes lettres : un sigle est ambigu pour le modèle, son développement ne l'est pas. Il travaille sur toutes les langues et tous les sujets à la fois, alors chaque mot de contexte en plus aide.",
+    // Questions worth asking, one per line, each a link to its own results in the
+    // "?" panel. A corpus overlay replaces the list with questions its documents
+    // answer well; an empty string hides the list and its title.
+    syntax_examples_title: "Exemples de questions :",
+    syntax_examples: "Quels sont les effets du café sur le sommeil ?\nComment la caféine agit-elle sur la vigilance ?",
     syntax_example_minus: "effets du café -(chez l'enfant)",
     syntax_minus: "« -(…) » retire un sujet : cherche les effets du café, en écartant ce qui parle de l'enfant.",
     syntax_example_or: "(effets du café | effets de la caféine)",
@@ -338,6 +343,8 @@ const STRINGS = {
     syntax_sentence: "Write a real sentence rather than keywords: the search compares the meaning of sentences, not the words.",
     syntax_language: "Search crosses languages: a question in one language can bring back a passage in another. The model is still much better in the document's own language, so ask in the language of the documents you are after.",
     syntax_context: "Spell acronyms out: an acronym is ambiguous to the model, its expansion is not. It works across every language and every subject at once, so each extra word of context helps.",
+    syntax_examples_title: "Example questions:",
+    syntax_examples: "How does coffee affect sleep?\nHow does caffeine act on alertness?",
     syntax_example_minus: "effects of coffee -(in children)",
     syntax_minus: "\"-(…)\" takes a subject out: searches for the effects of coffee, setting aside what is about children.",
     syntax_example_or: "(effects of coffee | effects of caffeine)",

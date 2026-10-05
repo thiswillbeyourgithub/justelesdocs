@@ -403,6 +403,9 @@ details.advanced .filters-title { margin-top: .25rem; padding-top: .5rem; }
 .syntax p { margin: .4rem 0; }
 .syntax ul { margin: .4rem 0 .6rem; padding-left: 1.1rem; }
 .syntax li { margin: .3rem 0; }
+/* The examples are links to their own results; the code ones keep their chip. */
+.syntax a.example-q { color: var(--accent); cursor: pointer; }
+.syntax a.example-q code { text-decoration: underline; text-underline-offset: 2px; }
 .syntax code { font-size: .95em; padding: .05rem .3rem; border-radius: .25rem;
                background: var(--card); color: var(--fg); }
 

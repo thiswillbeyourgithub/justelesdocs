@@ -1404,8 +1404,40 @@ function refreshAdvanced() {
   els.advanced.classList.toggle("narrowed", narrowed);
 }
 
+/**
+ * Turn the "?" panel's examples into links to their own results.
+ *
+ * Plain `?q=` links rather than click handlers that fill the box: the page boots
+ * from the URL (readUrlState), so a link is the whole feature, it opens in a new
+ * tab on a middle click, and it keeps the filters out (an example is meant to show
+ * what the question alone brings back). Re-run on every language change, since
+ * each example is translated.
+ */
+function wireExamples() {
+  const href = (question) => `?q=${encodeURIComponent(question)}`;
+  for (const link of document.querySelectorAll("a.example-q[data-example]")) {
+    link.href = href(t(link.dataset.example));
+  }
+  const list = document.getElementById("syntax-examples");
+  if (!list) return;
+  const questions = t("syntax_examples").split("\n").map((q) => q.trim()).filter(Boolean);
+  list.replaceChildren(...questions.map((question) => {
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.className = "example-q";
+    link.href = href(question);
+    link.textContent = question;
+    item.append(link);
+    return item;
+  }));
+  list.hidden = !questions.length;
+  const title = list.previousElementSibling;
+  if (title) title.hidden = !questions.length;
+}
+
 function refreshChrome() {
   apply();
+  wireExamples();
   refreshAdvanced();
   for (const [name, pref] of Object.entries(PREFS)) {
     showPref(name);
