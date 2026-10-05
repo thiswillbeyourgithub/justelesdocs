@@ -34,10 +34,15 @@ repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 status=0
 
-# The corpus refusal is its own script so a test can run it end to end, and its
-# header says what it inspects and why. It reads the refs being pushed from this
-# hook's stdin, which is why it runs first: nothing else here reads stdin.
-.githooks/refuse_corpus.sh || status=1
+# The branch and corpus refusals are their own scripts so a test can run them end
+# to end, and their headers say what they inspect and why. Both read the refs being
+# pushed, which git gives this hook on stdin once: it is captured here and handed
+# to each.
+pushed_refs="$(cat)"
+# Branch first, and alone: a push of the wrong branch is refused before anything
+# else runs, because no test result could make it right.
+printf '%s\n' "$pushed_refs" | .githooks/refuse_branch.sh || exit 1
+printf '%s\n' "$pushed_refs" | .githooks/refuse_corpus.sh || status=1
 
 # Syntax only, and only on what is tracked. `node --check` on a module is enough to
 # catch the class of mistake that gets pushed by accident, and it needs no install.

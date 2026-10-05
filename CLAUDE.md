@@ -57,7 +57,7 @@ Consistent across `../justelesRCP`, `../parakeet_web` and `../WebSend_git`:
 - Deployment is per corpus: the software ships no deploy script. A corpus's `deploy.sh` transfers an allow-list (`dist/`, `docker/`, `server/`, the `src/` modules the search image copies, the root `.dockerignore`), never a whole tree with excludes.
 - `ARCHITECTURE.md`, and bilingual `README.md` (EN, the one GitHub shows) / `README.fr.md` kept rigorously in sync.
 - `docs/changelog/<version>/changelog.md` per release, with the number in `VERSION`. `scripts/changelog.py` compiles the notes and `stage.py` refuses to stage a version that has none. A corpus's own `changelog/` and `VERSION` replace these.
-- `.githooks/pre-push`. Activate it per clone with `git config core.hooksPath .githooks`; its first job is refusing to push a corpus document.
+- `.githooks/pre-push`. Activate it per clone with `git config core.hooksPath .githooks`; its first job is refusing any push but the local `main` to the remote `main` (`.githooks/refuse_branch.sh`: the other local branches hold the pre-split history, which names the corpus and must never leave this machine), and its second is refusing to push a corpus document.
 
 **Language:** UI strings are bilingual French and English. Code, comments and developer docs are in English.
 

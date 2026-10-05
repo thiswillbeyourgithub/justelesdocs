@@ -217,3 +217,34 @@ def test_a_pdf_pushed_before_does_not_block_later_pushes(root, repo):
     base = commit(repo, "removed", remove=("a.pdf",))
     tip = commit(repo, "later", add={"README.md": "x"})
     assert run_refusal(root, repo, tip, base).returncode == 0
+
+
+def run_branch(root, repo, refs: str) -> subprocess.CompletedProcess:
+    """Feed .githooks/refuse_branch.sh the ref lines git would give the hook."""
+    return subprocess.run([str(root / ".githooks" / "refuse_branch.sh")], cwd=repo,
+                          input=refs, capture_output=True, text=True)
+
+
+def test_main_to_main_is_the_one_push_allowed(root, repo):
+    tip = commit(repo, "base")
+    assert run_branch(root, repo, f"refs/heads/main {tip} refs/heads/main {ZERO}\n").returncode == 0
+
+
+@pytest.mark.parametrize("line", [
+    "refs/heads/old {tip} refs/heads/old {zero}",     # another branch
+    "refs/heads/main {tip} refs/heads/other {zero}",  # main, to another name
+    "refs/heads/old {tip} refs/heads/main {zero}",    # another branch, onto main
+    "refs/tags/v1 {tip} refs/tags/v1 {zero}",         # a tag
+    "(delete) {zero} refs/heads/main {tip}",          # deleting the remote main
+])
+def test_any_other_ref_is_refused(root, repo, line):
+    tip = commit(repo, "base")
+    out = run_branch(root, repo, line.format(tip=tip, zero=ZERO) + "\n")
+    assert out.returncode == 1 and "Only main" in out.stderr
+
+
+def test_a_push_from_another_checked_out_branch_is_refused(root, repo):
+    tip = commit(repo, "base")
+    git(repo, "checkout", "-q", "-b", "other")
+    out = run_branch(root, repo, f"refs/heads/main {tip} refs/heads/main {ZERO}\n")
+    assert out.returncode == 1 and "not main" in out.stderr
