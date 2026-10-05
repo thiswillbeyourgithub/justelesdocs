@@ -20,6 +20,7 @@ justelesdocs est le logiciel. Les documents, leurs métadonnées et leur configu
 - [Configuration](#configuration)
 - [Tests et contrôles](#tests-et-contrôles)
 - [Crédits](#crédits)
+- [Licence](#licence)
 
 ## Ce que fait le site
 
@@ -120,3 +121,9 @@ Les contrôles complètent les tests : `verify_chunks.py`, `check_served.py` et 
 ## Crédits
 
 Développé avec [Claude Code](https://claude.com/claude-code). Rendu des PDF par [pdf.js](https://mozilla.github.io/pdf.js/) (Apache 2.0), embarqué dans `vendor/pdfjs/`.
+
+## Licence
+
+[GNU Affero General Public License v3.0](LICENSE). L'AGPL couvre l'usage à travers un réseau : si vous faites tourner une version modifiée comme site public, ses lecteurs doivent pouvoir obtenir votre code source modifié. Le lien vers le code source en pied de page est la façon dont ce site le propose, donc faites pointer `[site] repo_url` de votre `corpus.toml` vers votre propre dépôt si vous modifiez le code.
+
+La licence ne couvre que le logiciel. Un corpus (ses documents, ses métadonnées et ses textes) n'en fait pas partie et garde les conditions propres à ses documents.

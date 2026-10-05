@@ -206,7 +206,9 @@ languages = ["fr", "en"]
 default_language = "fr"
 # Optional: the repository the footer credits (else the software's own), the
 # author it names (else no author line), and a logo.svg relative to this file
-# (else the software's).
+# (else the software's). The software is AGPL-3.0: a site running MODIFIED code
+# must point repo_url at that modified source, since the footer link is how its
+# readers get it.
 # repo_url = "https://github.com/you/your-fork"
 # author = "Your Name"
 # logo = "logo.svg"

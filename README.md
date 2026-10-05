@@ -20,6 +20,7 @@ justelesdocs is the software. The documents, their metadata and their configurat
 - [Configuration](#configuration)
 - [Tests and gates](#tests-and-gates)
 - [Credits](#credits)
+- [License](#license)
 
 ## What the site does
 
@@ -120,3 +121,9 @@ The gates complement the tests: `verify_chunks.py`, `check_served.py` and `check
 ## Credits
 
 Developed with [Claude Code](https://claude.com/claude-code). PDF rendering by [pdf.js](https://mozilla.github.io/pdf.js/) (Apache 2.0), vendored in `vendor/pdfjs/`.
+
+## License
+
+[GNU Affero General Public License v3.0](LICENSE). The AGPL covers use over a network: if you run a modified version as a public site, its readers must be able to get your modified source. The footer's source link is how this site offers it, so point `[site] repo_url` in your `corpus.toml` at your own repository when you change the code.
+
+The license covers the software only. A corpus (its documents, metadata and strings) is not part of it and keeps whatever terms its own documents carry.
