@@ -26,13 +26,6 @@
    returning reader loses a setting. */
 export const PREFIX = `${globalThis.__SITE__?.id || "justelesdocs"}.`;
 
-/* The prefixes this site had before a rename (corpus.toml [site] previous_ids):
-   every `<old id>.<name>` key moves to `<id>.<name>`, so renaming a site costs no
-   reader their language, theme or ranking choices. Enumerated rather than listed
-   key by key, because the set of names grows with every setting added. */
-export const PREVIOUS_PREFIXES = Object.freeze(
-  (globalThis.__SITE__?.previous_ids || []).map((id) => `${id}.`));
-
 /** Old key -> its name under the prefix. Kept until no reader can still have one. */
 export const LEGACY_KEYS = Object.freeze({
   "jlr-theme": "theme",
@@ -41,20 +34,12 @@ export const LEGACY_KEYS = Object.freeze({
 });
 
 /**
- * Move every legacy key, and every key under a previous id, to its name under the
- * current prefix, then delete it.
+ * Move every legacy key to its prefixed name, then delete it.
  *
  * @param {Storage} storage - localStorage, or any object with the same three methods.
  */
 export function migrate(storage) {
-  const moves = Object.entries(LEGACY_KEYS);
-  // Keys collected before any is removed: removing shifts storage.key(i).
-  for (let i = 0; PREVIOUS_PREFIXES.length && i < storage.length; i++) {
-    const key = storage.key(i);
-    const from = PREVIOUS_PREFIXES.find((prefix) => key?.startsWith(prefix));
-    if (from) moves.push([key, key.slice(from.length)]);
-  }
-  for (const [old, name] of moves) {
+  for (const [old, name] of Object.entries(LEGACY_KEYS)) {
     const value = storage.getItem(old);
     if (value === null) continue;
     if (storage.getItem(PREFIX + name) === null) storage.setItem(PREFIX + name, value);

@@ -60,8 +60,6 @@ def test_a_one_part_brand_has_an_empty_emphasis(site_config):
     ('[site]\nid = "x"\nname = "n"\nbrand = ["a", "b", "c"]\n', "brand"),
     ('[site]\nid = "x"\nname = "n"\nlogo = "missing.svg"\n', "logo"),
     ('[site]\nid = "x"\nname = "n"\nlegacy_keys = { old = 3 }\n', "legacy_keys"),
-    ('[site]\nid = "x"\nname = "n"\nprevious_ids = ["x"]\n', "previous_ids"),
-    ('[site]\nid = "x"\nname = "n"\nprevious_ids = ["Has Space"]\n', "previous_ids"),
 ])
 def test_a_malformed_site_table_is_refused_by_key(site_config, table, word):
     write_site(table)
@@ -75,13 +73,6 @@ def test_legacy_keys_reach_the_page(site_config):
     script = site_config.site_script(site_config.load_site(), {})
     payload = json.loads(script[script.index("{"):script.rindex("}") + 1])
     assert payload["legacy_keys"] == {"old_seen": "changelogSeen"}
-
-
-def test_previous_ids_reach_the_page(site_config):
-    """A renamed site's former ids are handed to store.js, which moves their keys."""
-    write_site('[site]\nid = "new"\nname = "n"\nprevious_ids = ["old"]\n')
-    script = site_config.site_script(site_config.load_site(), {})
-    assert json.loads(script[script.index("{"):script.rindex("}") + 1])["previous_ids"] == ["old"]
 
 
 def test_placeholders_are_filled_and_escaped(site_config):
