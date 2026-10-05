@@ -46,8 +46,7 @@ PLACEHOLDER = re.compile(r"\{\{([a-z_]+)\}\}")
 # commit links point when a corpus names no repository of its own ([site] repo_url).
 # Held HERE only: stage.py writes it into site-config.js and passes it to
 # changelog.py, so site.js and changelog.py carry no copy that could drift.
-# TODO: set this once the justelesdocs repository exists on GitHub.
-SOFTWARE_REPO_URL = "https://github.com/TODO/justelesdocs"
+SOFTWARE_REPO_URL = "https://github.com/thiswillbeyourgithub/justelesdocs"
 
 def load_site() -> dict[str, Any]:
     """The `[site]` table, validated and with every default filled in.
