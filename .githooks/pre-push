@@ -170,23 +170,23 @@ if [ -n "$base" ] && [ -n "$(git diff --name-only "$base" HEAD -- src/)" ]; then
 fi
 
 # The bilingual pair is a documented invariant, and the failure mode is a French
-# reader and an English reader being told different things about a medical corpus.
+# reader and an English reader being told different things about the software.
 # Checked against the last common state rather than per commit, so splitting a
 # translation across two commits in one push is fine.
 if [ -n "$base" ]; then
-  changed="$(git diff --name-only "$base" HEAD -- README.md README.en.md)"
-  if [ "$changed" = "README.md" ] || [ "$changed" = "README.en.md" ]; then
-    echo "[pre-push] REFUSED: only $changed changed. README.md and README.en.md must stay in sync." >&2
+  changed="$(git diff --name-only "$base" HEAD -- README.md README.fr.md)"
+  if [ "$changed" = "README.md" ] || [ "$changed" = "README.fr.md" ]; then
+    echo "[pre-push] REFUSED: only $changed changed. README.md (EN) and README.fr.md (FR) must stay in sync." >&2
     status=1
   fi
   # Both files touched is not the same as both files saying the same thing: a section
   # added to one and forgotten in the other passes the rule above. Section headings
   # are the one structure a translation must preserve, so they are what gets compared;
   # word order and sentence length are free to differ, and do.
-  fr_sections="$(grep -c '^## ' README.md || true)"
-  en_sections="$(grep -c '^## ' README.en.md || true)"
+  fr_sections="$(grep -c '^## ' README.fr.md || true)"
+  en_sections="$(grep -c '^## ' README.md || true)"
   if [ "$fr_sections" != "$en_sections" ]; then
-    echo "[pre-push] REFUSED: README.md has $fr_sections sections and README.en.md has $en_sections." >&2
+    echo "[pre-push] REFUSED: README.fr.md has $fr_sections sections and README.md has $en_sections." >&2
     echo "[pre-push]   One language gained a section the other did not. They are one document." >&2
     status=1
   fi

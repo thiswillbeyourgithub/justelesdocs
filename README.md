@@ -1,68 +1,68 @@
-<!-- Version française. English version: README.en.md
-     IMPORTANT : README.md (FR) et README.en.md (EN) doivent rester synchronisés.
-     Quand vous modifiez l'un, mettez l'autre à jour en conséquence. -->
+<!-- English version. Version française : README.fr.md
+     IMPORTANT: README.md (EN) and README.fr.md (FR) must stay in sync.
+     When you change one, update the other accordingly. -->
 
 # justelesdocs
 
-*Read this in [English](README.en.md).*
+*Lire en [français](README.fr.md).*
 
-**Un site statique, sans publicité, qui sert un corpus de PDF choisis avec une recherche sémantique multilingue.** On pose une question en langage naturel, et la réponse s'affiche **sur la page du PDF d'origine, passage surligné**. Aucun modèle de langage ne tourne pour répondre : seulement des plongements (embeddings) et une recherche des plus proches voisins.
+**A static, ad-free site that serves a curated PDF corpus with multilingual semantic search.** You ask a question in plain language, and the answer is shown **on the page of the original PDF, with the passage highlighted**. There is no language model in the serving path: only embeddings and a nearest-neighbour search.
 
-justelesdocs est le logiciel. Les documents, leurs métadonnées et leur configuration vivent dans un répertoire séparé, le *corpus*, que le logiciel lit via la variable `CORPUS_DIR`. Une même installation du logiciel peut servir n'importe quel corpus.
+justelesdocs is the software. The documents, their metadata and their configuration live in a separate directory, the *corpus*, that the software reads through the `CORPUS_DIR` variable. One installation of the software can serve any corpus.
 
-## Sommaire
+## Contents
 
-- [Ce que fait le site](#ce-que-fait-le-site)
-- [Comment ça marche](#comment-ça-marche)
-- [Démarrage rapide](#démarrage-rapide)
-- [Lancer en local](#lancer-en-local)
-- [Déployer avec docker compose](#déployer-avec-docker-compose)
+- [What the site does](#what-the-site-does)
+- [How it works](#how-it-works)
+- [Quick start](#quick-start)
+- [Running locally](#running-locally)
+- [Deploying with docker compose](#deploying-with-docker-compose)
 - [Configuration](#configuration)
-- [Tests et contrôles](#tests-et-contrôles)
-- [Crédits](#crédits)
+- [Tests and gates](#tests-and-gates)
+- [Credits](#credits)
 
-## Ce que fait le site
+## What the site does
 
-- On pose une question, pas des mots-clés. La recherche porte sur tous les passages de tous les documents à la fois.
-- Un résultat ouvre la page du PDF dont il vient, passage surligné. Plusieurs passages sur une même page ont chacun leur surlignage. De là, un seul bouton ouvre le PDF complet ou le télécharge.
-- Les filtres (éditeur, pays, année, langue, type de document, thème, accès) viennent des métadonnées du corpus. Les vocabulaires sont fermés, un champ à plusieurs valeurs correspond dès qu'une valeur correspond, et l'année est un curseur à deux bornes.
-- Plusieurs versions d'un même document (une synthèse, le texte complet, un argumentaire) se replient sur la mieux classée, les autres étant proposées à côté.
-- Modèle multilingue : une question dans une langue peut trouver un passage dans une autre. L'interface est bilingue français et anglais, et un corpus peut ajouter ou remplacer des textes.
-- Un niveau `access: restricted` : certains documents se lisent sans être remis. Seules la page du passage et une page de part et d'autre sont servies, découpées dans le PDF à chaque requête, et le fichier lui-même n'est jamais accessible.
-- Les figures sont cherchables grâce à des descriptions écrites hors ligne par un modèle de vision, présentées comme telles.
-- Rien n'est traqué. La question part une fois vers le service de recherche du site, qui ne journalise ni la question ni les résultats. La mesure d'audience est désactivée sauf configuration, et même alors elle n'enregistre qu'une vue de page, sans la question.
+- You ask a question, not keywords. The search runs over every passage of every document at once.
+- A hit opens the PDF page it came from with the passage highlighted. Several passages on one page each get a highlight. From there, one control opens the whole PDF or downloads it.
+- Filters (issuer, country, year, language, document type, topic, access) come from the corpus's metadata. Vocabularies are closed, multi-valued fields match on any value, and the year is a range slider.
+- Several renditions of the same document (a summary, the full text, a supporting report) collapse into the best-ranked one, with the others offered beside it.
+- Multilingual model: a question in one language can find a passage in another. The interface is bilingual French and English, and a corpus can add or override strings.
+- An `access: restricted` tier: some documents can be read without being handed over. Only the passage's page and one page either side are served, cut out of the PDF on each request, and the file itself is never reachable.
+- Figures can be searched through descriptions written offline by a vision model, labelled as such.
+- Nothing is tracked. The question is sent once to the site's search service, which logs neither the question nor the results. Analytics are off unless configured, and even then record only a page view without the question.
 
-## Comment ça marche
+## How it works
 
-Tout ce qui est lourd se fait hors ligne, sur une machine avec GPU : OCR des pages scannées, découpage de chaque PDF en passages avec leurs coordonnées exactes sur la page, calcul des vecteurs, construction de l'index. Au moment de servir, rien de lourd ne tourne.
+Everything heavy happens offline, on a machine with a GPU: OCR of scanned pages, cutting each PDF into passages with their exact coordinates on the page, computing vectors, building the index. At serving time nothing heavy runs.
 
-La chaîne de construction est une suite d'étapes `uv run scripts/*.py`, chacune protégée par une empreinte de contenu : relancer toute la chaîne sans changement prend moins d'une minute, et un nouveau document ne recalcule que ce qui le concerne. Des contrôles bloquants refusent au lieu d'avertir : aucun PDF sauté, aucun document vide, aucun document restreint sous la racine web, un classement qui retrouve ses propres passages.
+The build chain is a series of `uv run scripts/*.py` steps, each gated by a content hash, so re-running the whole chain with nothing changed takes under a minute and a new document only recomputes what concerns it. Hard gates refuse rather than warn: no skipped PDF, no empty document, no restricted document under the web root, a ranker that finds its own passages.
 
-Au moment de servir, trois conteneurs durcis tournent : Caddy (fichiers statiques, CSP stricte, limite de débit par IP), un service de recherche Node qui garde l'index en mémoire et classe, et un service de pages Python qui découpe une page d'un document restreint. L'encodeur des questions est externe (le conteneur `embed` du projet frère justelesRCP) ou, en option, dans la même pile (le profil compose `embed`). L'index est binaire, 1024 dimensions à un bit chacune, ce qui tient sur un petit serveur sans GPU.
+At serving time three hardened containers run: Caddy (static files, strict CSP, per-IP rate limiting), a Node search service that holds the index in memory and ranks, and a Python page service that cuts one page out of a restricted document. The query encoder is external (the `embed` container of the sibling project justelesRCP) or optional in the same stack (the compose `embed` profile). The index is binary, 1024 dimensions, one bit per dimension, which fits a small server with no GPU.
 
-Pour l'architecture détaillée, voir [ARCHITECTURE.md](ARCHITECTURE.md) ; pour les décisions techniques et leurs mesures, [DESIGN.md](DESIGN.md).
+For the detailed architecture, see [ARCHITECTURE.md](ARCHITECTURE.md); for the technical decisions and their measurements, [DESIGN.md](DESIGN.md).
 
-## Démarrage rapide
+## Quick start
 
-1. Copiez le corpus d'exemple dans un répertoire à vous, hors de ce dépôt ou dans `local/` (ignoré par git) :
+1. Copy the example corpus into a directory of your own, outside this repository or in `local/` (gitignored):
 
    ```sh
-   mkdir -p local/moncorpus && cp corpus.example/corpus.toml local/moncorpus/
-   export CORPUS_DIR=local/moncorpus
+   mkdir -p local/mycorpus && cp corpus.example/corpus.toml local/mycorpus/
+   export CORPUS_DIR=local/mycorpus
    ```
 
-   `CORPUS_DIR` est obligatoire et n'a pas de valeur par défaut : chaque chemin `data/...` et `dist/...` est résolu à l'intérieur.
+   `CORPUS_DIR` is required and has no default: every `data/...` and `dist/...` path is resolved inside it.
 
-2. Modifiez `$CORPUS_DIR/corpus.toml` : nom du site, filtres, vocabulaires, niveaux, versions, langues. Chaque table est commentée.
+2. Edit `$CORPUS_DIR/corpus.toml`: site name, facets, vocabularies, tiers, renditions, languages. Every table is commented.
 
-3. Déposez vos PDF dans `$CORPUS_DIR/data/GUIDELINES/`. Seul ce répertoire est lu, indexé et servi.
+3. Put your PDFs in `$CORPUS_DIR/data/GUIDELINES/`. Only that directory is ever read, indexed and served.
 
-4. Lancez la chaîne :
+4. Run the chain:
 
    ```sh
    uv run scripts/check_pdfs.py
-   uv run scripts/manifest.py      # data/MANIFEST.tsv, ne remplit que les cases vides
-   uv run scripts/ocr.py           # si certaines pages sont des scans
+   uv run scripts/manifest.py      # data/MANIFEST.tsv, fills blanks only
+   uv run scripts/ocr.py           # if some pages are scans
    uv run scripts/chunk.py
    uv run scripts/verify_chunks.py
    uv run scripts/chunk.py --page-chunks --out data/chunks-page
@@ -74,49 +74,49 @@ Pour l'architecture détaillée, voir [ARCHITECTURE.md](ARCHITECTURE.md) ; pour 
    node scripts/check_search.mjs
    ```
 
-   Les deux étapes `embed.py` veulent un GPU : quelques minutes avec, quelques heures sans. Les poids du modèle viennent du projet frère justelesRCP (`scripts/download-model.sh --keep-fp32`).
+   The two `embed.py` steps want a GPU: minutes with one, hours without. The model weights come from the sibling project justelesRCP (`scripts/download-model.sh --keep-fp32`).
 
-## Lancer en local
+## Running locally
 
 ```sh
-cd ../justelesRCP && uv run src/embed-service.py --port 8461 --no-backlog   # l'encodeur
+cd ../justelesRCP && uv run src/embed-service.py --port 8461 --no-backlog   # the encoder
 EMBED_URL=http://127.0.0.1:8461 INDEX_DIR=$CORPUS_DIR/dist/index node server/service.mjs
 PAGES_DIR=$CORPUS_DIR/dist/restricted INDEX_DIR=$CORPUS_DIR/dist/index uv run server/pages.py
-uv run scripts/dev_server.py    # le site sur http://127.0.0.1:8649
+uv run scripts/dev_server.py    # the site on http://127.0.0.1:8649
 ```
 
-Aucun de ces services ne se recharge quand un fichier change. Après une modification, vérifiez que l'ancien processus ne tient plus son port (`ss -ltnp`).
+None of these services reloads when a file changes. After an edit, check that the old process is no longer holding its port (`ss -ltnp`).
 
-## Déployer avec docker compose
+## Deploying with docker compose
 
-Le serveur a besoin de `docker/`, `server/` et des modules de `src/` que l'image de recherche copie, plus l'arborescence construite `dist/` (`www/`, `index/`, `restricted/`), par défaut à côté de `docker/` (`DIST_DIR=../dist`).
+The server needs this repository's `docker/`, `server/` and the `src/` modules the search image copies, plus the built tree `dist/` (`www/`, `index/`, `restricted/`), by default next to `docker/` (`DIST_DIR=../dist`).
 
 ```sh
-cp docker/env.example docker/.env      # puis modifiez-le
-sudo docker network create justeles-embed   # une fois, le réseau vers l'encodeur
+cp docker/env.example docker/.env      # then edit
+sudo docker network create justeles-embed   # once, the network to the encoder
 cd docker && sudo docker compose up -d --build
 ```
 
-Le site écoute sur `127.0.0.1:8648` et attend un proxy inverse TLS devant lui. `scripts/smoke_deployed.sh <url>`, envoyé au serveur (`ssh ... "sh -s -- <url>" < scripts/smoke_deployed.sh`), vérifie que la recherche répond et qu'un document restreint n'est servi que page par page.
+The site listens on `127.0.0.1:8648` and expects a TLS reverse proxy in front of it. `scripts/smoke_deployed.sh <url>`, piped to the server (`ssh ... "sh -s -- <url>" < scripts/smoke_deployed.sh`), checks that search answers and that a restricted document is only served page by page.
 
 ## Configuration
 
-- `$CORPUS_DIR/corpus.toml` : tout ce qui concerne le corpus (`[site]`, `[facets]`, `[vocabularies.*]`, `[tiers]`, `[renditions]`, `[languages.*]`, `[figures]`, `[ocr]`, `[manifest]`, `[judge]`). [corpus.example/corpus.toml](corpus.example/corpus.toml) documente chaque clé.
-- `$CORPUS_DIR/strings/<langue>.json` : remplacements facultatifs des textes de l'interface définis dans `src/i18n.js`.
-- `$CORPUS_DIR/scenarios.json` : ce que les contrôles attendent de ce corpus (questions d'exemple, documents à trouver) ; sans lui, ils se rabattent sur ce que contient l'index.
-- `$CORPUS_DIR/changelog/` et `$CORPUS_DIR/VERSION` : s'ils existent, ils remplacent les notes de version et la version du logiciel sur le site.
-- `docker/.env` (à partir de [docker/env.example](docker/env.example)) : `SITE_ID` (nom du projet compose et préfixe des conteneurs, `justelesdocs` par défaut ; deux sites sur un même hôte en veulent deux), `DIST_DIR`, `NETWORK_SUBNET`, `EMBED_NETWORK`, `PORT`, `BIND_ADDR`, mesure d'audience, limites de la recherche.
+- `$CORPUS_DIR/corpus.toml`: everything about the corpus (`[site]`, `[facets]`, `[vocabularies.*]`, `[tiers]`, `[renditions]`, `[languages.*]`, `[figures]`, `[ocr]`, `[manifest]`, `[judge]`). [corpus.example/corpus.toml](corpus.example/corpus.toml) documents each key.
+- `$CORPUS_DIR/strings/<lang>.json`: optional overrides of the interface strings in `src/i18n.js`.
+- `$CORPUS_DIR/scenarios.json`: what the gates expect of this corpus (example queries, documents to find); without it they fall back on what the index contains.
+- `$CORPUS_DIR/changelog/` and `$CORPUS_DIR/VERSION`: if present, they replace the software's release notes and version on the site.
+- `docker/.env` (from [docker/env.example](docker/env.example)): `SITE_ID` (compose project name and container prefix, default `justelesdocs`; two sites on one host need two), `DIST_DIR`, `NETWORK_SUBNET`, `EMBED_NETWORK`, `PORT`, `BIND_ADDR`, analytics, search limits.
 
-## Tests et contrôles
+## Tests and gates
 
 ```sh
 uv run tests/run.py
 ```
 
-lance les tests du logiciel contre le corpus d'exemple, sans corpus réel ni index, plus `$CORPUS_DIR/tests` quand la variable est définie. Activez le hook de pre-push une fois par clone avec `git config core.hooksPath .githooks` : il lance les tests, et les contrôles du corpus quand `CORPUS_DIR` est défini.
+runs the software's tests against the example corpus, with no real corpus or index needed, plus `$CORPUS_DIR/tests` when the variable is set. Activate the pre-push hook once per clone with `git config core.hooksPath .githooks`: it runs the tests, and the corpus gates when `CORPUS_DIR` is set.
 
-Les contrôles complètent les tests : `verify_chunks.py`, `check_served.py` et `check_search.mjs` dans la chaîne de construction, `check_ui.mjs` et `check_chrome.mjs` dans un navigateur après toute modification de `src/`, `smoke_deployed.sh` contre le site en service.
+The gates complement the tests: `verify_chunks.py`, `check_served.py` and `check_search.mjs` in the build chain, `check_ui.mjs` and `check_chrome.mjs` in a browser after any change to `src/`, `smoke_deployed.sh` against the running site.
 
-## Crédits
+## Credits
 
-Développé avec [Claude Code](https://claude.com/claude-code). Rendu des PDF par [pdf.js](https://mozilla.github.io/pdf.js/) (Apache 2.0), embarqué dans `vendor/pdfjs/`.
+Developed with [Claude Code](https://claude.com/claude-code). PDF rendering by [pdf.js](https://mozilla.github.io/pdf.js/) (Apache 2.0), vendored in `vendor/pdfjs/`.
