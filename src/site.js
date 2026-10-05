@@ -263,7 +263,11 @@ function renderFooter() {
   fillTemplate(footParts.credits, t("foot_credits"), {
     agent: externalLink("https://claude.com/claude-code", "Claude Code"),
     // The repository's own name, so a fork's credit names the fork.
-    repo: externalLink(repo, repo.split("/").pop()),
+    // A language may send it to a page of its own (the overlay's foot_repo_url,
+    // say a README in that language), unless SOURCE_URL names a fork: the fork's
+    // pages are not the ones the overlay was written for.
+    repo: externalLink(isHttpUrl(config.sourceUrl) || !isHttpUrl(t("foot_repo_url")) ? repo : t("foot_repo_url"),
+                       repo.split("/").pop()),
   });
   const contact = t("foot_contact_url");
   footParts.suggest.hidden = !isHttpUrl(contact);

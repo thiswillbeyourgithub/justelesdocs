@@ -301,6 +301,9 @@ const STRINGS = {
     foot_suggest_issue: "une issue GitHub",
     foot_suggest_contact: "ma page de contact",
     foot_contact_url: "",
+    // Optional: where the credit's repository link lands in this language (say, a
+    // README in it). Blank means the repository itself; the issue link always does.
+    foot_repo_url: "",
     // The release-notes popup (changelog.js). The bullets themselves are not here:
     // they are written per release in docs/changelog/ and compiled into
     // changelog.json in both languages, because a release note is content, not
@@ -483,6 +486,9 @@ const STRINGS = {
     foot_suggest_issue: "a GitHub issue",
     foot_suggest_contact: "my contact page",
     foot_contact_url: "",
+    // Optional: where the credit's repository link lands in this language (say, a
+    // README in it). Blank means the repository itself; the issue link always does.
+    foot_repo_url: "",
     foot_changelog: "What's new?",
     changelog_title_new: "What's new?",
     changelog_title_all: "Release notes",

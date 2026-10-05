@@ -192,8 +192,13 @@ const AUTHOR = globalThis.__SITE__.author || "";
     // silently drops the link rather than failing loudly.
     const authorUrl = said(lang, "foot_author_url");
     if (AUTHOR && authorUrl) check(found(links, authorUrl), `${lang}: the author link is the language's own`, links.join(" "));
-    const repo = links.find((href) => /^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(href)) || "";
+    // The issue link names the repository whatever the language; the credit's link
+    // is the language's own page when the overlay sets foot_repo_url.
+    const repo = (links.find((href) => /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues$/.test(href)) || "")
+      .replace(/\/issues$/, "") || links.find((href) => /^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(href)) || "";
     check(repo !== "", `${lang}: a repository link, the public repo when SOURCE_URL is unset`, links.join(" "));
+    const repoPage = said(lang, "foot_repo_url");
+    if (/^https?:/.test(repoPage)) check(found(links, repoPage), `${lang}: the credit links to the language's own page`, links.join(" "));
     if (/^https?:/.test(contact)) {
       check(found(links, contact), `${lang}: a contact page in the reader's language`, links.join(" "));
       check(links.includes(`${repo}/issues`), `${lang}: with the issue tracker of that same repository`,
