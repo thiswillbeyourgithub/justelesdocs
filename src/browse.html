@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{name}}</title>
+<meta name="description" content="{{browse_description}}">
+<!-- Same head as index.html, for the same reasons: no external anything (the CSP
+     would block it), the runtime config before the modules that read it, and the
+     version file that stage.py generates. -->
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="stylesheet" href="app.css">
+<script src="app-config.js"></script>
+<script src="app-version.js"></script>
+<!-- The corpus's branding, languages and string overlay (window.__SITE__),
+     generated into dist/ by scripts/stage.py from corpus.toml. Before every
+     module, because store.js and i18n.js read it at import. -->
+<script src="site-config.js"></script>
+<script type="module" src="site.js"></script>
+<script type="module" src="changelog.js"></script>
+</head>
+<body data-page="browse">
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./">{{brand}}<span>{{brand_em}}</span></a>
+    <div class="spacer"></div>
+    <!-- The two ways into the corpus, both present on every page and always in
+         this order, so the pair reads as a switch between two views rather than a
+         link whose label changes under you. A reader who knows which document
+         they want has no question to ask; a reader looking at the list may want
+         to ask one after all. `aria-current="page"` marks the one you are on, and
+         is what the accent border comes from (app.css); the viewer is neither
+         page, so there it marks nothing. -->
+    <nav class="views" data-i18n-attr="aria-label:nav_label">
+      <a class="plain nav" href="./" data-i18n="nav_search"></a>
+      <a class="plain nav" href="browse.html" data-i18n="nav_browse" aria-current="page"></a>
+    </nav>
+    <button class="plain" id="lang-btn"></button>
+    <button class="plain" id="theme-btn" data-i18n-attr="aria-label:theme_toggle"></button>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1 class="tagline" data-i18n="browse_title"></h1>
+  <p class="hint" data-i18n="browse_intro"></p>
+
+  <!-- One panel: the name box and the facets, always open.
+       Two things were wrong with what this replaces. The facets sat behind a
+       <details> summary, so on the page whose whole job is filtering, the filters
+       were the one thing you had to click to see. And the name box sat outside that
+       panel, which made it look like a different kind of control from the facets
+       when it is the same act: narrowing a list that is already on the page.
+       Nothing here asks a question or reaches the encoder. -->
+  <section class="filters" id="filters" aria-labelledby="filters-title">
+    <h2 class="filters-title" id="filters-title" data-i18n="filters"></h2>
+    <div class="filter-body">
+      <!-- type="search" for the clear button the browser draws in it, not for any
+           search: it narrows the list as you type. -->
+      <input type="search" id="name-filter" class="name-filter" autocomplete="off"
+             spellcheck="false"
+             data-i18n-attr="placeholder:filter_name,aria-label:filter_name">
+    </div>
+    <div class="facets" id="facets"></div>
+    <div class="filter-body">
+      <button class="plain" type="button" id="reset-btn" data-i18n="reset_filters"></button>
+    </div>
+  </section>
+
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+  <!-- No view toggle and no search box: there is one row per document and nothing to
+       switch between. app.js reads body[data-page] and skips both. -->
+  <ol class="results" id="results"></ol>
+</main>
+
+<footer class="bot" id="foot"></footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

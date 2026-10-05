@@ -1,0 +1,210 @@
+# justelesdocs - static file server, no TLS in-container (front it with your proxy).
+{
+	# rate_limit comes from the caddy-ratelimit plugin, baked into the custom image
+	# (docker/web.Dockerfile) since the stock caddy:2-alpine has no such module. It
+	# is not a standard directive, so declare where it runs in the handler chain.
+	#
+	# Before file_server, not before reverse_proxy: file_server ranks EARLIER than
+	# reverse_proxy in Caddy's standard order, so "before reverse_proxy" would sort
+	# the limiter AFTER the static file server and the /pdf/* limit below would
+	# never fire (file_server writes the response and the chain ends there). Being
+	# before file_server also keeps it before reverse_proxy, so the two /api/search
+	# limits behave exactly as they did.
+	order rate_limit before file_server
+
+	# Per-IP rate limiting needs the real visitor IP, but requests reach Caddy via
+	# the upstream TLS proxy, so Caddy's immediate peer is that proxy, not the
+	# visitor. Trust the proxy and read X-Forwarded-For to recover the client IP.
+	# `private_ranges` trusts loopback and RFC1918 peers, which is the usual case.
+	# If the proxy sits on a PUBLIC IP, set TRUSTED_PROXIES to its address/CIDR in
+	# docker/.env, otherwise client_ip falls back to the proxy's address and the
+	# per-IP limit collapses into a single global bucket.
+	servers {
+		trusted_proxies static {$TRUSTED_PROXIES:private_ranges}
+	}
+}
+
+# A per-IP rate limit, one zone per route. A snippet rather than four copies of the
+# same nine lines, because the copies are what drifts: a key changed on /api/search
+# and forgotten on its health route would leave the health route as the unthrottled
+# way to reach the same container. Arguments: zone name, events, window.
+(per_ip_limit) {
+	rate_limit {
+		zone {args[0]} {
+			key {http.request.client_ip}
+			events {args[1]}
+			window {args[2]}
+		}
+	}
+}
+
+:8648 {
+	# Compress only what benefits. PDFs are the bulk of what this site serves and
+	# they are already compressed internally: gzipping a 10 MB PDF burns CPU for
+	# nothing on every request. Being explicit here rather than relying on Caddy's
+	# default content-type list also keeps byte-range serving cheap, and pdf.js
+	# fetches each document by Range so it can render page 400 without pulling the
+	# other 399.
+	encode {
+		zstd
+		gzip
+		match {
+			header Content-Type text/*
+			header Content-Type application/json*
+			header Content-Type application/javascript*
+			header Content-Type application/wasm*
+			header Content-Type image/svg+xml*
+		}
+	}
+
+	# Runtime app config (window.__APP_CONFIG__) is rendered from the container
+	# environment by docker/entrypoint.sh into /gen, a writable tmpfs, at startup;
+	# serve THAT for /app-config.js rather than any static fallback in /srv.
+	# Rendering once at startup instead of templating per request means Caddy never
+	# parses the JS as a Go template. Named generically, not "analytics-*", so
+	# content blockers do not 404 it and take the whole config with it.
+	handle /app-config.js {
+		root * /gen
+		file_server
+	}
+
+	# --- The search service ----------------------------------------------------
+	# Ranking runs in the `search` container (server/service.mjs), which holds the
+	# index resident and asks the SHARED encoder (justelesRCP's, over the
+	# `justeles-embed` network) for the query vector. Nothing about the encoder is
+	# proxied from here any more: the page never embeds a query itself, it posts
+	# the question to /api/search and gets ranked results back. That also closes
+	# the one path this site used to open onto another project's service.
+	#
+	# Only the endpoints the page uses are proxied, each by exact path.
+	# Everything else under /api/ is refused below. `handle` is first-match, so the
+	# exact paths must precede the catch-all 404.
+	handle /api/search {
+		# Cap the request body at the edge so a giant POST never reaches the
+		# service (which also caps internally at 16 KiB).
+		request_body {
+			max_size 16KB
+		}
+		# Per-IP rate limit (caddy-ratelimit). A search session sends one debounced
+		# search per keystroke pause, so a request a second is far above any human
+		# pace and still stops a crude flood before it fills the service's queue,
+		# which is the SHARED resource: the queue is one per container and a flood
+		# from one visitor would answer 503 to every other. Tune via
+		# SEARCH_RATE_EVENTS / SEARCH_RATE_WINDOW in docker/.env.
+		import per_ip_limit search {$SEARCH_RATE_EVENTS:60} {$SEARCH_RATE_WINDOW:1m}
+		reverse_proxy {$SEARCH_UPSTREAM:search:8650}
+	}
+
+	# Liveness only, so the frontend can say "search unavailable" instead of
+	# failing a query. Returns {ok, dims, n_chunks, waiting, rss_mb, ranker_sha, index_sha}; no text.
+	handle /api/search/health {
+		import per_ip_limit searchhealth {$SEARCH_RATE_EVENTS:60} {$SEARCH_RATE_WINDOW:1m}
+		reverse_proxy {$SEARCH_UPSTREAM:search:8650}
+	}
+
+	# One page of a restricted document, cut out of it per request by the pages
+	# service (server/pages.py). The 53 documents in that tier entered the corpus
+	# on the condition that they are served without download, so stage.py keeps
+	# them OUT of /srv entirely and this is the only route to them. Compare
+	# /pdf/* below, which serves the other 482 as whole files.
+	#
+	# The rate limit carries more weight here than anywhere else on this site: it
+	# is what stands between "a reader looks at a page" and "somebody walks a
+	# 1,275-page book one request at a time". It still has to clear a reader
+	# paging through a document, so it is per minute rather than per second.
+	handle /api/page {
+		import per_ip_limit page {$PAGE_RATE_EVENTS:120} {$PAGE_RATE_WINDOW:1m}
+		reverse_proxy {$PAGES_UPSTREAM:pages:8651}
+	}
+
+	handle /api/page/health {
+		import per_ip_limit pagehealth {$PAGE_RATE_EVENTS:120} {$PAGE_RATE_WINDOW:1m}
+		reverse_proxy {$PAGES_UPSTREAM:pages:8651}
+	}
+
+	# Everything else under /api/ is not ours to expose. 404 rather than 403: there
+	# is no reason to confirm that an endpoint exists behind this host.
+	handle /api/* {
+		respond 404
+	}
+
+	# --- The static site -------------------------------------------------------
+	# ../dist/www, bind-mounted read-only at /srv, assembled by scripts/stage.py:
+	# the cleared PDFs under /pdf, MANIFEST.tsv, the UI, and under /index only the
+	# PUBLIC half of the search index (meta.json and the per-document doc/ files
+	# the viewer draws highlights from). The vectors live in ../dist/index, which
+	# is not under this root at all, so no rule here can accidentally serve them.
+	# The PDFs are the expensive thing this site serves: 482 documents, some of
+	# them tens of megabytes, and the rest of the site is kilobytes. A crawler
+	# pulling the corpus costs bandwidth the VPS pays for, so the documents get a
+	# per-IP limit of their own. It has to be generous rather than tight: pdf.js
+	# fetches a document by HTTP Range, so opening ONE page can be several
+	# requests, and a reader comparing documents opens several in a minute. The
+	# default sits far above any human pace and far below a scrape.
+	#
+	# Matched rather than given its own `handle` block, because a second handle
+	# would mean a second copy of the root and file_server configuration below,
+	# and the copy that drifts is the one that stops serving precompressed files.
+	@pdf path /pdf/*
+
+	handle {
+		root * /srv
+		rate_limit @pdf {
+			zone pdf {
+				key {http.request.client_ip}
+				events {$PDF_RATE_EVENTS:300}
+				window {$PDF_RATE_WINDOW:1m}
+			}
+		}
+		file_server {
+			# Serve precompressed .br/.gz siblings when the client supports them
+			# (zero runtime CPU). Falls back to the on-the-fly encode above.
+			precompressed br gzip
+			# Build bookkeeping written by stage.py. It lists every served document
+			# and which of data/GUIDELINES or data/OCR it came from, which is
+			# internal build detail, so never expose it over HTTP.
+			hide .stage-manifest.json
+		}
+		try_files {path} {path}/index.html
+	}
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		# Strict, self-only, with three deliberate relaxations for pdf.js:
+		#   worker-src blob:  pdf.js runs its parser in a Web Worker and some builds
+		#                     instantiate it from a blob URL.
+		#   img-src blob:     rendered pages arrive as canvas/blob images.
+		#   object-src 'none' is a TIGHTENING, not a relaxation: pages are drawn to
+		#                     canvas by pdf.js, so this site never needs the
+		#                     browser's own PDF plugin via <object>/<embed>.
+		# If a future pdf.js build needs 'wasm-unsafe-eval', add it deliberately
+		# with a note; do not add it pre-emptively.
+		# The only optional third-party origin is the umami tracker, whose origin
+		# docker/entrypoint.sh derives from ANALYTICS_URL into ANALYTICS_ORIGIN
+		# (empty when analytics is off, which leaves the CSP with no extra origin).
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self' {$ANALYTICS_ORIGIN:}; worker-src 'self' blob:; connect-src 'self' {$ANALYTICS_ORIGIN:}; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+		-Server
+	}
+
+	# It is tempting to give /pdf/* a long max-age since a document's bytes rarely
+	# change. Resist it. The highlight boxes are computed from the exact file that
+	# gets served (that is the whole reason scripts/stage.py exists), so a browser
+	# holding last week's PDF alongside this week's index would draw highlights at
+	# coordinates from the other file: the search would look like it works and
+	# quietly point at the wrong part of the page. Revalidation is the cheap way to
+	# make that impossible. The same goes for /index/meta.json and /index/doc/*,
+	# which change with every rebuild under the same names.
+	#
+	# Everything always revalidates, PDFs included. "no-cache" still STORES the
+	# response but forces a conditional request, and Caddy's file_server answers
+	# 304 when nothing changed, so a cached 10 MB PDF stays free to re-open. (The
+	# content-hashed vector files that used to be immutable here are no longer
+	# served at all: the search service reads them from disk.)
+	header Cache-Control "no-cache"
+
+	log {
+		output stdout
+		format console
+	}
+}

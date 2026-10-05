@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{name}}</title>
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="stylesheet" href="app.css">
+<script src="app-config.js"></script>
+<!-- The version, generated into dist/ by scripts/stage.py from the VERSION file.
+     Absent in an unstaged src/ tree, which changelog.js treats as "say nothing". -->
+<script src="app-version.js"></script>
+<!-- The corpus's branding, languages and string overlay (window.__SITE__),
+     generated into dist/ by scripts/stage.py from corpus.toml. Before every
+     module, because store.js and i18n.js read it at import. -->
+<script src="site-config.js"></script>
+<!-- Metrics and the development banner, both off unless the container
+     environment turns them on. Deferred module: nothing here blocks the page. -->
+<script type="module" src="site.js"></script>
+<!-- The release-notes popup: opens by itself only for a reader who has been here
+     before and whose last visit predates this version. -->
+<script type="module" src="changelog.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./">{{brand}}<span>{{brand_em}}</span></a>
+    <div class="spacer"></div>
+    <!-- The two ways into the corpus, both present on every page and always in
+         this order, so the pair reads as a switch between two views rather than a
+         link whose label changes under you. A reader who knows which document
+         they want has no question to ask; a reader looking at the list may want
+         to ask one after all. `aria-current="page"` marks the one you are on, and
+         is what the accent border comes from (app.css); the viewer is neither
+         page, so there it marks nothing. -->
+    <nav class="views" data-i18n-attr="aria-label:nav_label">
+      <a class="plain nav" href="./" data-i18n="nav_search"></a>
+      <a class="plain nav" href="browse.html" data-i18n="nav_browse"></a>
+    </nav>
+    <button class="plain" id="lang-btn"></button>
+    <button class="plain" id="theme-btn" data-i18n-attr="aria-label:theme_toggle"></button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="viewer-bar">
+    <a id="back" href="./" data-i18n="back_to_results"></a>
+    <span class="spacer"></span>
+    <!-- One control for the whole document, because "open it" and "save it" are two
+         answers to the same question and two links side by side made the reader
+         choose before knowing there was a choice. Empty here and filled by viewer.js
+         from i18n.js's builder, which the result lists use too: the summary carries
+         the document's page count, so it cannot exist before the index has loaded. -->
+    <!-- Asking the same corpus a second question, from the document the first one
+         landed in. The scope is the point: a reader who is reading THIS guideline
+         usually wants the next answer from it too, and the two wider scopes are there
+         because the same reader sometimes discovers that the answer is elsewhere.
+         A <details>, like the PDF menu beside it, so both close by the same rule. -->
+    <details class="doc-search" id="doc-search">
+      <summary class="plain" data-i18n="search_here"></summary>
+      <form class="doc-search-panel" id="doc-search-form">
+        <input type="search" id="doc-q" autocomplete="off" maxlength="512"
+               data-i18n-attr="placeholder:search_placeholder,aria-label:search_label">
+        <fieldset>
+          <legend data-i18n="search_scope"></legend>
+          <label><input type="radio" name="scope" value="doc" checked>
+                 <span data-i18n="scope_doc"></span></label>
+          <!-- Written by viewer.js, since it names the issuer, and hidden outright on
+               the documents that have none (a journal article has no issuing body). -->
+          <label id="scope-issuer-row"><input type="radio" name="scope" value="issuer">
+                 <span id="scope-issuer-label"></span></label>
+          <label><input type="radio" name="scope" value="all">
+                 <span data-i18n="scope_all"></span></label>
+        </fieldset>
+        <button class="plain" type="submit" data-i18n="search_button"></button>
+      </form>
+    </details>
+    <span id="pdf-slot"></span>
+  </div>
+  <h1 id="doc-title" class="doc-title"></h1>
+  <p class="hit-meta" id="doc-meta"></p>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+  <!-- The frame holds the page still while the page itself scrolls inside it when
+       zoomed, which is what lets the highlight toggle sit over a corner of the
+       document and stay there. -->
+  <div class="page-frame" id="page-frame">
+    <div class="page-scroll" id="scroll">
+      <!-- The canvas, the highlight layer and the text layer share this positioned
+           box, so a box in PDF points can be placed as a percentage of it and stay
+           correct at any zoom or window width. The text layer is last, and so on
+           top: it is what the reader's cursor has to reach to select text, and the
+           highlight boxes under it are pointer-events: none for the same reason. -->
+      <div class="page-stage" id="stage">
+        <canvas id="canvas"></canvas>
+        <div class="hit-layer" id="layer"></div>
+        <div class="text-layer" id="textlayer"></div>
+      </div>
+    </div>
+    <!-- No data-i18n: viewer.js writes the label, which names the action the current
+         state makes available ("hide" while they are showing). -->
+    <button class="plain overlay" id="hl-btn" aria-pressed="true"></button>
+  </div>
+  <!-- The pager sits under the page, where the reader's eyes already are when they
+       reach the end of it, and where "next page" means what it says. Above the page
+       it asked for a decision before the page had been read. One group, so a narrow
+       screen wraps it as a unit: split across two lines, "Page précédente" ends up
+       above the number it belongs to and reads as two unrelated controls. -->
+  <p class="pager">
+    <button class="plain" id="prev" data-i18n="prev_page"></button>
+    <span id="pageno"></span>
+    <button class="plain" id="next" data-i18n="next_page"></button>
+  </p>
+  <!-- The passage as the index holds it, collapsed. A scanned page, a two-column
+       layout at a small zoom or a faint fax is sometimes unreadable on screen even
+       though its text layer is fine, and the highlight then says where the passage
+       is without saying what it says. This is the fallback: the very same characters
+       the ranker scored.
+
+       Under the pager rather than between the page and it, because the pager belongs
+       against the page (view.html, above) and a disclosure opening between the two
+       would push "page suivante" down the screen by the length of a passage.
+
+       Absent, not empty, on the 53 restricted documents: stage.py strips `text` from
+       their published JSON and check_served.py refuses a word of one under the web
+       root, so there is nothing here to show and a summary promising otherwise would
+       be worse than no summary. viewer.js unhides it when the chunk carries text. -->
+  <details class="chunk-text" id="chunk-text" hidden>
+    <summary data-i18n="chunk_text"></summary>
+    <!-- The document's own line breaks are in the indexed text, and `white-space:
+         pre-wrap` is what keeps them: a table of doses read as one run-on line is
+         exactly the case this disclosure exists for. -->
+    <p class="chunk-text-body" id="chunk-text-body"></p>
+  </details>
+</main>
+
+<!-- Same footer as the search page, filled by site.js. -->
+<footer class="bot" id="foot"></footer>
+
+<script type="module" src="viewer.js"></script>
+</body>
+</html>

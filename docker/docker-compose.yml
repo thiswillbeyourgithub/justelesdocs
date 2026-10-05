@@ -1,0 +1,369 @@
+# Hardened, read-only static hosting for justelesdocs.
+#
+# Three services. `web` is Caddy: the generated site (../dist/www: the cleared
+# PDFs, MANIFEST.tsv, the UI and the public half of the search index) plus the
+# Caddyfile and entrypoint are bind-mounted read-only. `search` is the ranker
+# (server/service.mjs under Node) with the full index (../dist/index) mounted
+# read-only. `pages` (server/pages.py) cuts one page out of a restricted
+# document per request, from ../dist/restricted mounted read-only. All three run
+# read-only with tmpfs scratch space, and only Caddy publishes a port.
+#
+# Modelled on ../justelesRCP/docker/docker-compose.yml, which is the working
+# precedent for the hardening posture (read_only, cap_drop ALL + NET_BIND_SERVICE,
+# no-new-privileges, tmpfs, json-file log rotation). Read that file for the
+# reasoning behind each of those; only the differences are explained here.
+#
+# DIFFERENCE 1: there is no `refresh` service. This site has no crawler. Its
+# corpus is a set of files that a human sorted by hand, and it changes when a human
+# adds a document and redeploys, never on a timer.
+#
+# DIFFERENCE 2: by default there is no `embed` service either, and that is
+# deliberate. The VPS is small and the encoder is ~1 GB resident, so DESIGN.md
+# decided that exactly one copy of the model may be resident and that this site
+# points at the justelesRCP instance over a shared Docker network. Copying
+# embed-service.py (1000+ lines) into this repo would rot: the two would drift on
+# the day either one changes, and the failure is silent (queries answered by a
+# different encoder than the passages were baked with, which measurably reorders
+# results, see scripts/compare_bakes.py). The optional `embed` profile below is
+# the one exception, for a host with no justelesRCP: it BUILDS the sibling's own
+# Dockerfile from EMBED_CONTEXT rather than carrying a copy, so there is still
+# one definition. See docker/env.example for both setups.
+# The Compose PROJECT name, and it has to be set explicitly here.
+#
+# Compose derives the project name from the directory holding the compose file
+# when nothing says otherwise. That directory is `docker/` in this repo AND in
+# `../justelesRCP`, so both stacks were the same project, named `docker`, on the
+# one host that runs them both. Compose identifies a running container by the
+# labels com.docker.compose.project + com.docker.compose.service, and both
+# projects call their Caddy service `web`, so each `docker compose up
+# --force-recreate` found the OTHER project's web container under the name it was
+# about to recreate and replaced it. Deploying either site took the other one
+# down, and it looked like a networking fault because every other container
+# stayed up and only the sibling's web container quietly vanished.
+#
+# Naming the project fixes it at the root and costs nothing else: the default
+# network becomes <SITE_ID>_default instead of docker_default, and nothing
+# here or in the sibling refers to a network by name.
+#
+# SITE_ID (docker/.env) names the project AND prefixes the three container names,
+# so two corpora served by this software on one host are two projects that cannot
+# recreate each other's containers either. Keep it distinct from every other
+# compose project on the host; a deployment that predates the variable sets it to
+# the name it already runs under, so `up` recreates nothing it did not mean to.
+name: ${SITE_ID:-justelesdocs}
+
+services:
+  web:
+    # Custom Caddy image (docker/web.Dockerfile): stock caddy:2-alpine has no
+    # rate-limit module, and /api/search needs per-IP throttling because every
+    # search costs the SHARED encoder real CPU. Abuse here degrades
+    # justelesRCP as well, which is the strongest argument for the limit.
+    build:
+      context: .
+      dockerfile: web.Dockerfile
+    container_name: ${SITE_ID:-justelesdocs}
+    restart: unless-stopped
+    # entrypoint.sh stamps STARTED_AT, validates ANALYTICS_URL, derives
+    # ANALYTICS_ORIGIN for the CSP and renders /gen/app-config.js, then execs
+    # Caddy. Invoked through /bin/sh because the file is bind-mounted and a
+    # mounted file's exec bit is the host's, which is easy to lose over rsync.
+    entrypoint: ["/bin/sh", "/usr/local/bin/entrypoint.sh"]
+    # Not root, like the other two: Caddy serves a read-only tree on an
+    # unprivileged port and writes only to its tmpfs dirs, which Docker mounts
+    # world-writable (mode 1777), so nothing here needs uid 0. The ids are the
+    # host's for the same reason as below (bind mounts read as the deploying
+    # user). APP_UID/APP_GID were SEARCH_UID/SEARCH_GID before they covered all
+    # three services; the inner fallback keeps a docker/.env written before the
+    # rename working instead of silently switching the containers to uid 1000.
+    user: "${APP_UID:-${SEARCH_UID:-1000}}:${APP_GID:-${SEARCH_GID:-1000}}"
+    ports:
+      # TLS is terminated upstream, so this listens on plain HTTP. Bound to
+      # loopback by default (stricter than justelesRCP's all-interfaces bind)
+      # because the reverse proxy runs on the same host. Set BIND_ADDR to an
+      # empty string in docker/.env if the proxy lives in another container and
+      # has to reach this over the host network.
+      # 8648, chosen by the project owner because it collides with nothing else
+      # running on that host.
+      - "${BIND_ADDR:-127.0.0.1:}${PORT:-8648}:8648"
+    # Runtime config comes from docker/.env (gitignored; copy docker/env.example).
+    # Unset keys fall back to safe defaults in the entrypoint and the Caddyfile
+    # (no analytics, DEV off, DNT on). Deliberately NO `environment:` block: it
+    # would take precedence over env_file, and since compose interpolates ${VAR}
+    # from the invoking directory rather than docker/, it would shadow real
+    # values with empty ones.
+    env_file:
+      - .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
+      # The whole served tree, built by scripts/stage.py. Read-only: nothing in
+      # this container may ever write into the corpus. deploy.sh rsyncs dist/
+      # with -L, so the symlinks stage.py creates arrive here as real files.
+      - ${DIST_DIR:-../dist}/www:/srv:ro
+    read_only: true
+    tmpfs:
+      # Caddy needs a writable data/config dir even with no TLS to manage; /gen
+      # holds the app-config.js the entrypoint renders at each startup.
+      - /tmp
+      - /config
+      - /data
+      - /gen
+    cap_drop:
+      - ALL
+    cap_add:
+      # The caddy:2-alpine binary carries `setcap cap_net_bind_service=+ep`. The
+      # effective bit means execve() fails with EPERM when the capability is not
+      # in the bounding set, and `cap_drop: ALL` empties it. We do not bind a
+      # privileged port (8648), but the binary's file capability must still be
+      # satisfiable at exec time, so it goes back. Everything else stays dropped.
+      # Still needed as non-root: the exec check is against the bounding set, and
+      # no-new-privileges then keeps the process from actually gaining the
+      # capability, which it does not need for 8648.
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      # `default` has to be listed explicitly: naming ANY network here replaces
+      # default membership rather than adding to it, and dropping it would cut
+      # this container off from anything else this project ever adds.
+      #
+      # Only `default`: Caddy talks to the search service over it, by service
+      # name, and to nothing else. The encoder is the SEARCH service's business
+      # now (see its `networks:` below), so this container no longer sits on the
+      # shared network at all: one fewer container with a route to another
+      # project's service.
+      - default
+    # Ceilings, so that no one container can take the small VPS down with it (the
+    # serving reranker did exactly that by RAM on 2026-09-30). Caddy serving
+    # static files sits well under 128 MB; the pid cap stops a fork or thread
+    # runaway long before the host's table.
+    mem_limit: 128m
+    pids_limit: 64
+    depends_on:
+      - search
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8648/index.html"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  search:
+    # The ranker, server/service.mjs under Node (docker/search.Dockerfile). It
+    # holds the index resident (about 70 MB with the vectors, more with the
+    # per-document text cache, see SEARCH_TEXT_CACHE), embeds each question
+    # through the shared encoder and answers POST /api/search with ranked,
+    # folded results. The page downloads no matrix. Caddy reverse-proxies the
+    # two /api/search paths here by SERVICE NAME (Caddyfile, SEARCH_UPSTREAM),
+    # so nothing is published on the host.
+    build:
+      # The repo root, because the service imports src/search.js. The root
+      # .dockerignore denies everything but docker/, server/ and those three
+      # modules, which is what makes a root context safe in a repo whose data/
+      # holds 657 MB of documents that may never leave this machine.
+      context: ..
+      dockerfile: docker/search.Dockerfile
+    container_name: ${SITE_ID:-justelesdocs}-search
+    restart: unless-stopped
+    # Host UID, same convention as the sibling's services: the index bind mount
+    # is host-owned and read-only, and a container that runs as root has no
+    # business reading it as root. Override in docker/.env if the host uid
+    # differs (it does on the VPS).
+    user: "${APP_UID:-${SEARCH_UID:-1000}}:${APP_GID:-${SEARCH_GID:-1000}}"
+    # Every key in docker/.env reaches the service (SEARCH_DIM, SEARCH_FLOOR,
+    # SEARCH_QUEUE_DEPTH, SEARCH_TEXT_CACHE, EMBED_URL); the three below are
+    # fixed by this file because they name paths and ports THIS file decides.
+    env_file: .env
+    environment:
+      INDEX_DIR: /index
+      SEARCH_PORT: "8650"
+      # The encoder, by CONTAINER NAME over the justeles-embed network. Same
+      # default as in server/service.mjs; docker/.env may override it.
+      EMBED_URL: ${EMBED_URL:-http://justelesrcp-embed:8461}
+    volumes:
+      # The FULL index from scripts/build_index.py: vectors, chunk table, page
+      # vectors and the per-document text. Only the service ever sees the
+      # vectors; the page gets meta.json and doc/ through Caddy's separate
+      # mount of ../dist/www. Read-only: the service writes nothing.
+      - ${DIST_DIR:-../dist}/index:/index:ro
+    # Measured at 348 to 376 MB RSS under load with the 256 MB heap cap in
+    # search.Dockerfile (DESIGN.md), 230 MB idle on the 77k-chunk index: 512 MB
+    # leaves headroom for the index growing without letting a leak take the host.
+    # Node runs about a dozen threads; 64 pids is far above that.
+    mem_limit: 512m
+    pids_limit: 64
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      # `default` for Caddy to reach it; `justeles-embed` for it to reach the
+      # sibling's encoder. See the header of docker/env.example for that
+      # network, which must exist before this stack starts.
+      - default
+      - justeles-embed
+    healthcheck:
+      # Node's alpine image ships busybox wget. The health answer carries the
+      # index width and queue depth and never any query text.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8650/api/search/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  pages:
+    # One page of a restricted document, cut per request (server/pages.py). The
+    # 53 documents in that tier entered the corpus on the condition that they
+    # are served without download, so stage.py puts them in dist/restricted/,
+    # which is a SIBLING of the web root and is mounted HERE and nowhere else.
+    # Caddy has no mount that can reach them, so no URL returns a document: the
+    # only way to see a page is to ask this service for that page.
+    build:
+      # `..` for the same reason the search image uses it: the source lives in
+      # server/, outside docker/. The root .dockerignore denies everything and
+      # re-admits server/, so the 657 MB under data/ cannot enter the context.
+      context: ..
+      dockerfile: docker/pages.Dockerfile
+    container_name: ${SITE_ID:-justelesdocs}-pages
+    restart: unless-stopped
+    # Host UID, same convention as the search service: both bind mounts stay
+    # host-owned and read-only, and the container has no business being root.
+    user: "${APP_UID:-${SEARCH_UID:-1000}}:${APP_GID:-${SEARCH_GID:-1000}}"
+    env_file: .env
+    environment:
+      PAGES_DIR: /restricted
+      INDEX_DIR: /index
+      PAGES_PORT: "8651"
+    volumes:
+      # The documents themselves, which may not be redistributed. Read-only, and
+      # deliberately not the corpus directory: only what stage.py put there.
+      - ${DIST_DIR:-../dist}/restricted:/restricted:ro
+      # For meta.json alone, which is where the document list, the page counts
+      # and the access tiers come from. Read-only like the search service's.
+      - ${DIST_DIR:-../dist}/index:/index:ro
+    # One PDF open per request plus a cache of PAGES_CACHE documents (default
+    # 4); pymupdf on a few-MB file stays well under this. Single-threaded.
+    mem_limit: 256m
+    pids_limit: 64
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # `default` only: this service never reaches the encoder, so it has no
+    # business on the network that leads to the sibling project.
+    networks:
+      - default
+    healthcheck:
+      # python:slim ships no wget or curl, so the check is python itself. It
+      # reports how many documents were loaded and no document text.
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8651/api/page/health', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # OPTIONAL encoder, for a host with no justelesRCP on it: started only by
+  # `docker compose --profile embed up`, and ignored by every plain `up`.
+  #
+  # It is the SAME encoder, built from a justelesRCP checkout (EMBED_CONTEXT) with
+  # that repo's own Dockerfile, not a copy of it here: the wire format and the
+  # query prefix are a contract between the encoder and the bake, and a second
+  # definition of either would drift silently (see the header of this file). With
+  # EMBED_ENABLE=0 it embeds queries only, so it needs the model and nothing else
+  # of the sibling's data. To use it, set in docker/.env:
+  #   EMBED_URL=http://embed:8461
+  #   EMBED_CONTEXT=<path to a justelesRCP checkout, relative to docker/>
+  #   EMBED_MODELS=<its models/ directory, from scripts/download-model.sh>
+  # The `search` service still lists the external network, so it must exist even
+  # then: `sudo docker network create justeles-embed` (or EMBED_NETWORK's name).
+  embed:
+    profiles: [embed]
+    build:
+      context: ${EMBED_CONTEXT:-../../justelesRCP}
+      dockerfile: docker/embed.Dockerfile
+    container_name: ${SITE_ID:-justelesdocs}-embed
+    restart: unless-stopped
+    user: "${APP_UID:-${SEARCH_UID:-1000}}:${APP_GID:-${SEARCH_GID:-1000}}"
+    environment:
+      EMBED_ENABLE: "0"
+      EMBED_MODEL_DIR: /app/models/jinaai/jina-embeddings-v5-text-small-retrieval
+    volumes:
+      - ${EMBED_MODELS:-../../justelesRCP/models}:/app/models:ro
+    # ~600 MB of weights resident plus a query batch; the sibling's own ceiling.
+    mem_limit: ${EMBED_MEM_LIMIT:-2g}
+    pids_limit: 256
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8461/api/sem/health', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# The network both projects meet on. `external: true` means compose neither
+# creates nor deletes it, which is the point: a shared route that one project can
+# remove by going down is not shared. The price is that compose REFUSES TO START
+# when it is missing, so deploy.sh creates it (idempotently) before `up`, and a
+# first deploy by hand needs:
+#
+#   sudo docker network create justeles-embed
+#
+# The name is hardcoded in both repos rather than read from an env var because it
+# has to match in two repos, and two variables in two .env files is one more thing
+# that can drift apart while each side looks correctly configured.
+networks:
+  # PINNED, for the reason recorded at length in ../justelesRCP's compose file and
+  # in DESIGN.md: this host has taken every /16 in Docker's first default pool, so
+  # a network created without a subnet falls through to the 192.168 fallback, and
+  # on this host a bridge there has no outbound network at all while every 172.x
+  # bridge works. 172.16.0.0/16 is allocated last by the pool and was free.
+  #
+  # Allocation across both repos, so neither can pick a colliding one:
+  #   172.16.240.0/24  justeles-embed        (shared, created by deploy.sh)
+  #   172.16.241.0/24  justelesrcp_default
+  #   172.16.242.0/24  <SITE_ID>_default (the default of NETWORK_SUBNET)
+  #   172.16.250.0/24  scripts/diagnose_network.sh's throwaway probe network
+  # A second site on the same host sets its own NETWORK_SUBNET in docker/.env.
+  default:
+    ipam:
+      config:
+        - subnet: ${NETWORK_SUBNET:-172.16.242.0/24}
+
+  # The key stays `justeles-embed` (the services above list it by key); the real
+  # Docker network is EMBED_NETWORK, for a host whose shared network is named
+  # otherwise. Its default is the name justelesRCP hardcodes.
+  justeles-embed:
+    name: ${EMBED_NETWORK:-justeles-embed}
+    external: true

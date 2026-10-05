@@ -1,0 +1,857 @@
+/* justelesdocs - one small stylesheet, no external fonts, no framework.
+
+   The palette is deliberately identical to ../justelesRCP/src/style.css: the two
+   sites are siblings and should look it. Only the token values are shared; the
+   layout below is this site's own, because a corpus search over many PDFs has
+   nothing structurally in common with one drug's leaflet. Keeping the tokens in
+   sync by hand is the tradeoff for not shipping a shared stylesheet between two
+   independently deployed projects. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --fg: #1a1c20;
+  --muted: #5b616e;
+  --accent: #8a5cf0;
+  /* Same hue as --accent as an "R G B" triple, so rgb(var(--accent-rgb) / a) can
+     derive translucent variants (the tour glow, the highlight fills) from one
+     source colour. CSS cannot extract channels from a hex var, so this must be
+     kept in step with --accent by hand. */
+  --accent-rgb: 138 92 240;
+  --line: #e4e7ec;
+  --card: #f7f8fa;
+  --d-bg: #14161a;
+  --d-fg: #e7e9ee;
+  --d-muted: #9aa2b1;
+  --d-accent: #b48bff;
+  --d-accent-rgb: 180 139 255;
+  --d-line: #2a2e37;
+  --d-card: #1c1f26;
+  /* The matched passage is FRAMED, not filled. A translucent wash over the words
+     was the first version and it cost exactly what it saved: the text under it
+     sat behind a purple veil, on a scanned page at that, and reading the passage
+     you came for was harder than reading the rest of the page. The frame sits in
+     the margin around the block instead, so nothing is drawn over a single glyph
+     and the eye still lands on it from across the page. The halo is what does
+     that landing, and it is outside the frame for the same reason. */
+  --hit-best-edge: rgb(var(--accent-rgb) / 0.95);
+  --hit-halo: rgb(var(--accent-rgb) / 0.18);
+  /* The fill for the text highlight. Weak on purpose, and applied with
+     mix-blend-mode: multiply, so it tints the PAPER and leaves the glyphs at full
+     contrast instead of putting a veil over them: multiplying white paper by the
+     fill gives the fill, and multiplying black ink by it gives black. That is what
+     makes a fill usable here where the flat translucent one described above was
+     not. */
+  --hit-fill: rgb(var(--accent-rgb) / 0.28);
+  /* These two are ONE decision in two places and must move together, so they are
+     tokens rather than a pair of dark-mode rules that a later edit can separate.
+     pdf.js renders the PDF as published, which means WHITE paper whatever the site
+     theme is, so the blend mode that suits the highlight depends entirely on whether
+     the canvas above has been inverted. See the rules further down. */
+  --page-invert: none;
+  --hit-blend: multiply;
+  --maxw: 60rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: var(--d-bg); --fg: var(--d-fg); --muted: var(--d-muted);
+    --accent: var(--d-accent); --accent-rgb: var(--d-accent-rgb);
+    --line: var(--d-line); --card: var(--d-card);
+    --page-invert: invert(1) hue-rotate(180deg);
+    --hit-blend: screen;
+    --hit-fill: rgb(var(--d-accent-rgb) / 0.40);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: var(--d-bg); --fg: var(--d-fg); --muted: var(--d-muted);
+  --accent: var(--d-accent); --accent-rgb: var(--d-accent-rgb);
+  --line: var(--d-line); --card: var(--d-card);
+  --page-invert: invert(1) hue-rotate(180deg);
+  --hit-blend: screen;
+  /* A heavier wash than the 0.28 light mode uses. Screen onto black paper starts
+     from nothing and adds, where multiply onto white starts from full brightness and
+     takes away, so the same alpha reads weaker on the inverted page. Matched by eye
+     against the light crop rather than by arithmetic, since the two blends are not
+     comparable numerically. */
+  --hit-fill: rgb(var(--d-accent-rgb) / 0.40);
+}
+* { box-sizing: border-box; }
+/* overscroll-behavior-x stops a horizontal trackpad swipe from pulling the page
+   sideways into empty space. Every page here is one column that never needs to
+   scroll horizontally, so there is nothing to the right to reach, but a browser
+   will still rubber-band toward it on a two-finger swipe and the reader sees the
+   layout slide off and blank paper appear.
+
+   `none` rather than `contain`, and on html rather than body, because the aim is
+   to stop the gesture at the page rather than to stop it propagating to an
+   ancestor. It does NOT set overflow, so it creates no scroll container and the
+   sticky header keeps working, which `overflow-x: hidden` on body would have
+   risked. Nested scrollers opt back in: .page-scroll in the viewer sets its own
+   overscroll-behavior-x: auto, since panning a zoomed PDF sideways is real
+   scrolling over real content. */
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-x: none; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+a { color: var(--accent); }
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 1rem; }
+
+/* --- header ------------------------------------------------------------- */
+header.top {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+}
+/* Wraps, because it has to: the wordmark plus four controls measure about 500 px
+   and a phone is 360. Without `flex-wrap` the row simply ran off the side of the
+   screen, taking the whole page with it (the header is 100% wide, so its overflow
+   is the document's), which reads as a broken layout rather than a wide header.
+   The `.spacer` below has `flex: 1` and a zero base, so it eats the free space of
+   the first line and the controls drop to a second line under the wordmark rather
+   than crowding it. `row-gap` is smaller than the column gap: two lines a full
+   .75rem apart made the header taller than the search box under it. */
+header.top .wrap {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: .75rem; row-gap: .4rem; padding: .6rem 1rem;
+}
+/* The page switch (and, on the search page, the tour) as one group, so that on a phone
+   the header can fold into two deliberate lines instead of wrapping wherever the
+   widths happened to fall: the wordmark with the language and theme toggles on the
+   first, the pages on the second, the tour pushed to its right end. Before the group
+   existed the fold left "Visite guidée" and "Français" on a line of their own under
+   the page links, which read as a second, unrelated menu. */
+.views { display: flex; align-items: center; gap: .5rem; }
+@media (max-width: 40rem) {
+  .views { order: 3; flex-basis: 100%; }
+  .views #tour-btn { margin-left: auto; }
+}
+.brand { font-weight: 700; text-decoration: none; color: var(--fg); white-space: nowrap; }
+.brand span { color: var(--accent); }
+.spacer { flex: 1; }
+button.plain {
+  background: var(--card); color: var(--fg); border: 1px solid var(--line);
+  border-radius: .4rem; padding: .3rem .6rem; font: inherit; font-size: .85rem;
+  cursor: pointer;
+}
+button.plain:hover { border-color: var(--accent); }
+button.plain[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+/* A control that is there and does nothing has to LOOK like it. Without this a dead
+   pager arrow was the same button as a live one and a reader clicked it twice before
+   deciding the site was broken. Two states rather than one, because they answer two
+   different questions: `:disabled` is the end of a document, which explains itself,
+   and `aria-disabled` is the edge of a restricted window, which does not, so that one
+   keeps a pointer that invites the click that brings up the reason (src/i18n.js,
+   `tapNote`). */
+button.plain:disabled, button.plain[aria-disabled="true"] {
+  color: var(--muted); border-style: dashed; cursor: not-allowed;
+}
+button.plain:disabled:hover, button.plain[aria-disabled="true"]:hover {
+  border-color: var(--line); color: var(--muted);
+}
+button.plain[aria-disabled="true"] { cursor: help; }
+
+/* The sentence a dead control gives up when it is tapped. Fixed, because it is
+   positioned from a viewport rectangle, and above everything but the release-notes
+   popup, since the controls that raise one sit in a corner of the page. */
+.tap-note {
+  position: fixed; z-index: 40; max-width: min(22rem, calc(100vw - 1rem));
+  background: var(--card); color: var(--fg);
+  border: 1px solid var(--line); border-radius: .4rem;
+  box-shadow: 0 2px 10px rgb(0 0 0 / .25);
+  padding: .4rem .6rem; font-size: .82rem; line-height: 1.35;
+}
+.tap-note[hidden] { display: none; }
+
+/* The link between the two pages, styled as the buttons beside it are: it sits in
+   the same row and does the same kind of thing, and a link that looked like a link
+   there would read as the odd one out. Underlined on hover all the same, since it
+   navigates and they do not. */
+a.plain.nav {
+  background: var(--card); color: var(--fg); border: 1px solid var(--line);
+  border-radius: .4rem; padding: .3rem .6rem; font-size: .85rem;
+  text-decoration: none; white-space: nowrap;
+}
+a.plain.nav:hover { border-color: var(--accent); text-decoration: underline; }
+/* The page you are already on, marked the way a pressed button is marked, because
+   the two nav links now sit side by side on every page and otherwise nothing in
+   the bar would say which of the two you are looking at. */
+a.plain.nav[aria-current="page"] { border-color: var(--accent); color: var(--accent); }
+
+/* --- search ------------------------------------------------------------- */
+.searchbox { display: flex; gap: .5rem; margin: 1.25rem 0 .5rem; align-items: flex-start; }
+.searchbox textarea {
+  /* `min-width: 0` undoes the `min-width: auto` a flex item gets by default, which
+     for a text input is its intrinsic size (roughly 20 characters). Without it the
+     input refuses to shrink past that, and on a 320 px screen the Search button
+     beside it is pushed off the edge of the page. */
+  flex: 1; min-width: 0; font: inherit; padding: .6rem .75rem;
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: .5rem;
+  /* The height is set from the content by app.js, so the browser's own resize
+     grip would fight it: drag it taller and the next keystroke snaps it back.
+     Vertical overflow is hidden for the same reason, since the box is never
+     shorter than its text. */
+  resize: none; overflow-y: hidden; line-height: 1.4;
+}
+.searchbox textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* The button is as tall as the two rows beside it, rather than floating at the top
+   of a box that grows away from it. */
+.searchbox button { align-self: stretch; }
+.status { color: var(--muted); font-size: .9rem; min-height: 1.4em; }
+.status.error { color: #c0392b; }
+/* The sentence that points at the other page, on both pages. Muted: it is an aside
+   next to the thing the reader came for, whether that is the box or the list. */
+.hint { color: var(--muted); font-size: .9rem; margin: .4rem 0 1rem; }
+.hint[hidden] { display: none; }
+
+/* --- filters ------------------------------------------------------------ */
+/* Facets are built from the data, so this grid holds however many columns of
+   MANIFEST.tsv are actually curated. An uncurated column renders nothing at all
+   rather than an empty control, which is why the filter panel grows over time
+   instead of needing a rewrite. */
+/* Two hosts for the same panel, on purpose. On the search page the knobs live
+   inside the "recherche avancée" disclosure, because a question is the point
+   there and metadata is the exception. On the corpus listing filtering IS the
+   page, so the same block sits open and needs a frame of its own. One class, so
+   the two pages cannot drift apart. */
+section.filters { border: 1px solid var(--line); border-radius: .5rem; margin: .5rem 0 1rem; }
+.filters-title { margin: 0; padding: .5rem .75rem .1rem; font-size: .9rem; }
+/* Two rows (app.js, renderFacets): the captioned level and year side by side, then the
+   facet buttons in equal cells. Two columns for the first row whenever the panel is
+   wide enough for a sentence-long <select> beside a slider, one column below that. The
+   buttons are short one-word captions, so they pack by a narrower minimum: six on a
+   desktop line, two to a row on a phone, never one orphan stretched across the panel
+   (auto-fill keeps the empty tracks, so a short last row stays as wide as the others). */
+.facets { display: grid; gap: .9rem; padding: .25rem .75rem .75rem; }
+.facets-head { display: grid; gap: .9rem 1.5rem; grid-template-columns: 1fr; align-items: end; }
+@media (min-width: 40rem) { .facets-head { grid-template-columns: 1fr 1fr; } }
+.facets-menus { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); }
+.facet-label { display: block; font-size: .78rem; text-transform: uppercase;
+               letter-spacing: .04em; color: var(--muted); margin-bottom: .25rem; }
+/* :not(checkbox), because the box in a choice below wants none of this. */
+.facet select, .facet input:not([type="checkbox"]), .name-filter {
+  width: 100%; font: inherit; font-size: .9rem; padding: .3rem .4rem;
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line); border-radius: .35rem;
+}
+
+/* The year: its caption and its readout share one line ("ANNÉE ... 1943 à 2026"), and
+   the slider takes the line under it, so the cell is a caption plus one control like
+   the level beside it and the two controls sit on one baseline. `display: contents`
+   lifts the readout and the track out of the .range wrapper app.js builds, so this
+   grid can place them without app.js knowing the layout. */
+.facet-range { display: grid; grid-template-columns: 1fr auto; align-items: baseline;
+               column-gap: .5rem; }
+.facet-range .range { display: contents; }
+.facet-range .range-track { grid-column: 1 / -1; margin: .15rem 0 .2rem; }
+
+/* A facet's values as a list of checkboxes rather than a <select multiple>.
+   Choosing two themes had to stop being a ctrl-click secret, and a native
+   multiple-select shows its state only while it has room to: at twenty values it
+   either eats the page or hides the selection inside its own scrollbar. The list
+   of boxes says what is selected at a glance, and scrolls internally so that one
+   long facet (issuer has dozens of values) cannot push the others off screen. */
+.choices { display: grid; gap: .1rem; max-height: 13rem; overflow-y: auto;
+           background: var(--bg); border: 1px solid var(--line); border-radius: .35rem;
+           padding: .3rem .4rem; }
+
+/* The boxes live in a popup now, opened by a button that says what the facet is
+   currently doing. Six columns of scrolling checkboxes took the room of six open
+   menus while showing four options each, and a reader looking for one topic out of
+   thirty was reading rather than choosing. The button is the label as well as the
+   control: "Thème · 2" says more than a caption above a list ever did. */
+.facet-menu { position: relative; }
+.facet-btn { width: 100%; text-align: left; font-size: .9rem;
+             padding: .35rem .5rem; border: 1px solid var(--line);
+             border-radius: .35rem; background: var(--bg); }
+.facet-btn::after { content: "▾"; float: right; color: var(--muted); }
+/* A facet that is narrowing the corpus says so on its own button: the panel can be
+   scrolled past, and a filter nobody remembers setting is the one that makes the
+   corpus look empty. */
+.facet-btn.narrowed { border-color: var(--accent); color: var(--accent); }
+.facet-btn[aria-expanded="true"] { border-color: var(--accent); }
+.facet-pop { position: absolute; z-index: 20; top: calc(100% + .25rem); left: 0;
+             min-width: 100%; width: max-content; max-width: min(22rem, 90vw);
+             background: var(--card); border: 1px solid var(--line);
+             border-radius: .4rem; padding: .4rem; box-shadow: 0 6px 20px rgb(0 0 0 / .18); }
+.facet-pop .choices { border: none; background: none; padding: .1rem; }
+.facet-search { margin-bottom: .3rem; }
+.facet-empty { margin: .2rem .1rem 0; font-size: .85rem; color: var(--muted); }
+.choice { display: flex; gap: .4rem; align-items: baseline; font-size: .9rem;
+          line-height: 1.25; cursor: pointer; }
+.choice input[type="checkbox"] { flex: none; margin: 0; accent-color: var(--accent); }
+/* `display: flex` above beats the [hidden] attribute's own `display: none`, so the
+   popup's search box would hide nothing without this line. */
+.choice[hidden] { display: none; }
+/* Issuer values are long and unbreakable ("CNEDiMTS"); wrapping inside the box
+   beats a horizontal scrollbar under every group. */
+.choice span { min-width: 0; overflow-wrap: anywhere; }
+
+/* The document-name box sits in the same panel as the facets rather than above
+   it: it filters the same list by the same click, and two separate controls made
+   the page look as though the name search and the metadata search were different
+   searches. */
+.name-filter { margin-top: .3rem; }
+
+/* The year range: one track with a handle at each end.
+
+   There is still no two-handle input element, so this is two native sliders laid on
+   top of each other rather than a widget written from scratch: the keyboard support,
+   the focus ring and the touch targets are the browser's, and each handle can be
+   tabbed to and nudged with the arrow keys exactly as before. What is drawn is the
+   wrapper's own track plus the lit segment between the two values, so the reader
+   sees a single range rather than two controls that happen to share a meaning.
+
+   Each input is transparent and lets pointer events through; only its thumb takes
+   them, which is what allows the lower handle to be grabbed through the upper
+   slider's track. */
+/* Three things about this geometry that are not guessable, each of which was once
+   wrong on screen:
+
+   1. The thumb is centred on the rail BY HAND in WebKit. With `appearance: none` a
+      Chromium thumb sits at the TOP of its runnable track rather than in its middle,
+      so on a 1.5rem track a .95rem thumb hung about 4px above the rail it was meant to
+      slide along. `margin-top` below puts it back; Firefox centres on its own.
+   2. The rail and the lit span are inset by half a thumb at each end. A native thumb
+      travels from half its width to the width minus half its width, not from 0 to
+      100%, so a fill drawn against the whole box overshot both handles. The fill is
+      placed from `--lo` and `--hi` (0 to 1, written by app.js) inside that inset.
+   3. `isolation: isolate` keeps the z-indices app.js gives the two inputs (to decide
+      which handle is on top where they meet) inside this box. Without it they
+      competed with every popup on the page, and the upper handle painted THROUGH the
+      "?" panel, which hangs over the filters on a phone. */
+.facet .range-track {
+  --thumb: .95rem;
+  position: relative; height: 1.5rem; isolation: isolate;
+}
+/* The unlit rail, drawn once behind both inputs. */
+.facet .range-track::before {
+  content: ""; position: absolute; top: 50%; transform: translateY(-50%);
+  left: calc(var(--thumb) / 2); right: calc(var(--thumb) / 2);
+  height: .3rem; border-radius: .3rem; background: var(--line);
+}
+/* The selected span, positioned from the two values app.js writes. */
+.facet .range-fill {
+  position: absolute; top: 50%; transform: translateY(-50%); height: .3rem;
+  border-radius: .3rem; background: var(--accent); pointer-events: none;
+  left: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--lo, 0));
+  width: calc((100% - var(--thumb)) * (var(--hi, 1) - var(--lo, 0)));
+}
+.facet .range-track input[type="range"] {
+  position: absolute; top: 0; left: 0; width: 100%; margin: 0; padding: 0;
+  height: 1.5rem; background: none; border: none; appearance: none;
+  pointer-events: none;   /* the track is the wrapper's; only the thumb is grabbable */
+}
+.facet .range-track input[type="range"]::-webkit-slider-runnable-track {
+  background: none; border: none; height: 1.5rem;
+}
+.facet .range-track input[type="range"]::-moz-range-track { background: none; border: none; }
+.facet .range-track input[type="range"]::-webkit-slider-thumb {
+  appearance: none; pointer-events: auto; cursor: pointer; box-sizing: border-box;
+  width: var(--thumb); height: var(--thumb); border-radius: 50%;
+  margin-top: calc((1.5rem - var(--thumb)) / 2);
+  background: var(--accent); border: 2px solid var(--card);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.facet .range-track input[type="range"]::-moz-range-thumb {
+  pointer-events: auto; cursor: pointer; box-sizing: border-box;
+  width: var(--thumb); height: var(--thumb); border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--card);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+/* Keyboard focus has to stay visible: the input itself is invisible, so the ring
+   goes on the thumb, which is the part a reader is looking at. */
+.facet .range-track input[type="range"]:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--fg); outline-offset: 2px;
+}
+.facet .range-track input[type="range"]:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--fg); outline-offset: 2px;
+}
+.range-readout { font-size: .85rem; font-variant-numeric: tabular-nums; color: var(--fg); }
+
+/* "Recherche avancée": one disclosure holding everything that is not the box.
+   It used to be two stacked ones, the query algebra and the filters, which read
+   as two settings menus for a page whose only real control is the text field.
+   Nothing inside is needed to search, so nothing inside competes with the box
+   for attention until the reader opens it. */
+/* Grouped with the passage-text disclosure under the viewer's page: two different
+   panels, but one shape, and stating the border and the padding twice is how the two
+   drift into looking almost alike. */
+details.advanced, details.chunk-text { border: 1px solid var(--line); border-radius: .5rem;
+                                       margin: .5rem 0 1rem; }
+details.advanced > summary, details.chunk-text > summary { padding: .5rem .75rem;
+                                                          cursor: pointer; font-size: .9rem; }
+/* Closed, the summary is the only thing left on screen that can say the corpus is
+   being narrowed, so it says it. Without this a reader who set a filter, collapsed
+   the panel and then wondered where two thirds of the answers went would have
+   nothing on the page to look at. */
+details.advanced.narrowed > summary { color: var(--accent); }
+/* No border-top any more: it separated this heading from the syntax help that used to
+   sit above it inside the panel, and with the help moved beside the box (index.html)
+   the line would sit directly under the summary and read as a doubled edge. */
+details.advanced .filters-title { margin-top: .25rem; padding-top: .5rem; }
+
+/* The query-algebra hint, no longer collapsible: it is already inside a
+   disclosure, and a second click to read what the reader has just asked to see
+   would be a click for nothing. */
+/* The inset is the panel's (`.syntax-panel`, below), since that is the box the text
+   sits in now. */
+.syntax { margin: 0; font-size: .85rem; color: var(--muted); }
+.syntax p { margin: .4rem 0; }
+.syntax ul { margin: .4rem 0 .6rem; padding-left: 1.1rem; }
+.syntax li { margin: .3rem 0; }
+.syntax code { font-size: .95em; padding: .05rem .3rem; border-radius: .25rem;
+               background: var(--card); color: var(--fg); }
+
+/* --- results ------------------------------------------------------------ */
+/* The passage/document switch. A pair of buttons rather than a <select>, because
+   there are exactly two of them and the current one has to be readable without
+   opening anything. aria-pressed carries the state.
+   The pressed style itself comes from the button.plain[aria-pressed] rule above,
+   which already exists for the theme button: one definition, two users. */
+/* The row above the results: how they are stacked, and how they were ranked. Wraps
+   on a phone so the checkbox drops under the view buttons instead of squeezing them. */
+.result-controls { display: flex; flex-wrap: wrap; align-items: center;
+                   gap: .4rem .9rem; margin: 0 0 .7rem; }
+/* display:flex above would otherwise beat the UA sheet's [hidden]. */
+.result-controls[hidden] { display: none; }
+.view-toggle { display: flex; gap: .4rem; }
+.view-toggle[hidden] { display: none; }
+/* The label is the hit area, so the words are clickable and not just the box. */
+.rescore-toggle { display: inline-flex; align-items: center; gap: .35rem;
+                  font-size: .85rem; color: var(--muted); cursor: pointer;
+                  user-select: none; }
+.rescore-toggle input { accent-color: rgb(var(--accent-rgb)); cursor: pointer; }
+.rescore-toggle select { font: inherit; cursor: pointer; }
+
+ol.results { list-style: none; margin: 0; padding: 0; }
+/* The passages nested under a document in the grouped view. Indented by a rule in
+   the accent colour rather than by bullets, so the eye can follow one document's
+   passages down and skip to the next document's title. */
+ol.results .passages { list-style: none; margin: .45rem 0 0; padding: 0 0 0 .7rem;
+                       border-left: 2px solid rgb(var(--accent-rgb) / .35); }
+ol.results .passages > li { margin: 0 0 .35rem; font-size: .9rem; }
+ol.results .passages > li:last-child { margin-bottom: 0; }
+.passage-page { color: var(--muted); font-size: .8rem; white-space: nowrap;
+                font-variant-numeric: tabular-nums; }
+/* The passage's rank and score, beside its page number. Same muted size as the page it
+   sits next to and not `.hit-score`, which pushes itself to the far right of a flex
+   head: here the label belongs against the page number it qualifies, at the head of
+   the snippet, so the eye reads "page 12, #3, and then the words". */
+/* A figure chunk's text is a model's description, and says so before it. */
+.figure-note { display: block; width: fit-content; margin: .35rem 0 0; padding: 0 .4rem;
+               font-size: .78rem; color: var(--muted); border: 1px solid var(--line);
+               border-radius: .25rem; }
+.passage-rank { color: var(--muted); font-size: .8rem; white-space: nowrap;
+                font-variant-numeric: tabular-nums; }
+ol.results > li {
+  border: 1px solid var(--line); border-radius: .5rem;
+  padding: .7rem .85rem; margin-bottom: .6rem; background: var(--card);
+}
+.hit-head { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; }
+.hit-title { font-weight: 600; text-decoration: none; color: var(--fg); }
+.hit-title:hover { color: var(--accent); }
+.hit-meta { color: var(--muted); font-size: .82rem; }
+/* The publisher link. Muted like the line it sits on, dotted rather than solid so it
+   reads as a claim to check and not as another of the site's own files, and never
+   broken across lines: "Source" on one line and "(IA)" on the next would lose the
+   caveat that is the reason the label carries it. */
+.src-ai { color: var(--muted); text-decoration: underline dotted; white-space: nowrap; }
+.src-ai:hover { color: var(--accent); }
+/* The document's own DOI or ISBN. A SOLID underline where the publisher link above is
+   dotted, because the difference is the point: this identifier was read out of the PDF
+   and the dotted one was looked up and may be wrong. Same muted colour, because
+   neither is what the reader came for. */
+.doc-id { color: var(--muted); text-decoration: underline; white-space: nowrap; }
+.doc-id:hover { color: var(--accent); }
+.hit-score { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums;
+             font-size: .8rem; }
+/* `pre-line` rather than `normal`: the chunker keeps the paragraph breaks of the
+   original and the line breaks its author made (chunk.py, format 14), and a list of
+   recommendations or a table of drug names run together into one paragraph is
+   unreadable next to the page it came from. Runs of spaces still collapse, which is
+   what separates this from `pre-wrap`: a PDF pads its columns with spaces and those
+   are layout, not text. */
+.hit-text { font-size: .93rem; color: var(--fg); text-decoration: none; cursor: pointer;
+  white-space: pre-line; }
+.hit-text.block { display: block; margin: .4rem 0 0; }
+.hit-text:hover { color: var(--accent); }
+/* The passage is a button so that clicking it opens the whole chunk in place, which
+   means undoing everything a button looks like: the row must read as text. Left
+   aligned and full width in the block form, so the hit area is the paragraph the
+   reader is already looking at rather than a box around it. */
+button.hit-text { font-family: inherit; text-align: left; background: none;
+                  border: 0; padding: 0; line-height: inherit; }
+button.hit-text.block { width: 100%; }
+/* Opened, the passage grows from a snippet into the whole chunk, which is a
+   paragraph or more: as a colour, the open state meant reading that paragraph in
+   purple. The viewer had already answered the same question for the highlighted
+   region of a PDF page, by framing it instead of washing it, so the open passage
+   borrows the same two tokens and the words stay in the reading colour.
+   Three rings rather than an outline plus a shadow, because the gap between the
+   text and the frame is painted by neither: the first ring repaints the row's own
+   background to make the gap, the second is the frame, the third is the halo. None
+   of them affects layout, and 10px stays inside the row's own .85rem padding. */
+button.hit-text[aria-expanded="true"] {
+  border-radius: 3px;
+  box-shadow: 0 0 0 4px var(--card),
+              0 0 0 6px var(--hit-best-edge),
+              0 0 0 10px var(--hit-halo);
+}
+/* The hover colour is for picking a passage out of a list of snippets. Once one is
+   open it is a block of prose, and turning all of it purple on the way past is the
+   thing the frame exists to avoid. */
+button.hit-text[aria-expanded="true"]:hover { color: var(--fg); }
+/* A passage with nothing folded away gets no cursor and no hover, because clicking it
+   would do nothing. */
+.hit-text.plain-text { cursor: default; }
+.hit-text.plain-text:hover { color: var(--fg); }
+.hit-text mark { background: rgb(var(--accent-rgb) / .22); color: inherit; padding: 0 .1em; }
+.hit-extra { margin: .35rem 0 0; font-size: .82rem; color: var(--muted); }
+/* One line, not two: the PDF menu is a <details>, a block, so the " · DOI" after it
+   used to drop to a line of its own and open with a stray separator. As a wrapping
+   flex row the menu, the separators and the links sit on one baseline, and the
+   separators (bare text nodes, app.js docLinks) become items of their own. */
+.doc-links { display: flex; flex-wrap: wrap; align-items: center; column-gap: .4rem; row-gap: .2rem; }
+.hit-extra a { color: var(--muted); }
+.hit-extra a:hover { color: var(--accent); }
+.empty { color: var(--muted); padding: 1.5rem 0; }
+/* The offer to widen, under the last result. Centred and muted: it is an aside to a
+   list the reader is still reading, and a full-width button at the end of a page of
+   results reads as the next step rather than as a way out of a filter. */
+.widen { margin: 1.25rem 0 0; text-align: center; }
+.widen[hidden] { display: none; }
+.widen button { font-size: .9rem; color: var(--muted); }
+.widen button:hover { color: var(--accent); border-color: var(--accent); }
+
+/* --- viewer ------------------------------------------------------------- */
+.viewer-bar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+              margin: .75rem 0; font-size: .9rem; }
+/* Under the page and centred, see view.html. inline-flex keeps the three controls on
+   one line whatever the width. */
+.pager { display: flex; justify-content: center; align-items: center; gap: .5rem;
+         margin: .75rem 0 .25rem; }
+/* These five rules used to be style="" attributes in the markup. They are here
+   because the production CSP is `style-src 'self'` with no 'unsafe-inline', which
+   blocks a style ATTRIBUTE parsed from HTML (setting el.style from script is not
+   blocked, which is why the tour bubble and the highlight boxes were unaffected).
+   A blocked attribute fails quietly: the page still renders, slightly wrong, and
+   the console fills with violations. */
+.tagline { font-size: 1.15rem; font-weight: 600; margin: 1.1rem 0 0; }
+.filter-body { padding: 0 .75rem .75rem; }
+.doc-title { font-size: 1.05rem; font-weight: 600; margin: .2rem 0; }
+/* Tabular figures so "9 / 10" does not shift width as the page number changes. */
+#pageno { font-variant-numeric: tabular-nums; }
+/* The passage's own text, opened under the page. `pre-wrap`, not `pre`: the
+   document's line breaks are worth keeping (a dose table is unreadable as one run-on
+   line) but its line LENGTHS are not, since a chunk wrapped at the PDF's own column
+   width would need a horizontal scrollbar on a phone. Monospaced for the same
+   reason the breaks are kept: what is on screen is the indexed text, character for
+   character, and a proportional face quietly presents it as prose. */
+.chunk-text-body { margin: 0; padding: 0 .75rem .75rem; white-space: pre-wrap;
+                   overflow-wrap: break-word; font-family: ui-monospace, monospace;
+                   font-size: .85rem; line-height: 1.5; color: var(--fg); }
+.plain.bare { text-decoration: none; }
+/* One document, three stacked layers and a scroller, in four boxes:
+
+   .page-frame   stays put and owns the overlaid controls
+     .page-scroll  clips and scrolls the page when it is zoomed past the frame
+       .page-stage   the page itself, at its rendered CSS size
+         canvas / .hit-layer / .text-layer, all the same box
+
+   The frame exists so the highlight toggle can sit over a corner of the document
+   without scrolling away with it. viewer.js measures .page-scroll to decide how
+   wide to render, so the frame must not be what carries the overflow. */
+.page-frame { position: relative; margin: 0 auto 2rem; }
+/* Expanded is one state, not a rung on a zoom ladder (see viewer.js): the frame
+   becomes an overlay filling the viewport and the page is re-rendered to its width.
+   Fixed rather than native-fullscreen-only, because element fullscreen does not exist
+   everywhere and the state has to look the same where it does not. Flex so the
+   scroller takes the whole height and the page can be scrolled through inside it. */
+.page-frame.expanded {
+  position: fixed; inset: 0; z-index: 50; margin: 0;
+  display: flex; background: var(--bg);
+}
+/* Flex with `margin: auto` on the stage, so a page shorter than the screen (any page
+   on a phone, at fit-to-width) sits in the middle of it rather than glued to the top
+   above a blank half-screen. Auto margins rather than justify/align-content: center,
+   because centring that way pushes an OVERFLOWING page's top and left edges out of
+   reach of the scrollbar, and a zoomed page always overflows. Auto margins collapse
+   to zero once the page is larger than the box, so it scrolls from its real edge.
+
+   touch-action keeps one-finger scrolling native and takes pinch away from the
+   browser: viewer.js zooms the page itself and re-renders it sharp, where the
+   browser's pinch would only magnify the pixels already drawn. */
+.page-frame.expanded .page-scroll { flex: 1; height: 100%; display: flex;
+                                    touch-action: pan-x pan-y; }
+.page-frame.expanded .page-stage { margin: auto; flex: none; }
+.page-scroll { overflow: auto; cursor: zoom-in; overscroll-behavior-x: auto; }
+.page-frame.expanded .page-scroll { cursor: zoom-out; }
+.page-stage { position: relative; margin: 0 auto; width: fit-content;
+              box-shadow: 0 1px 6px rgb(0 0 0 / .18); }
+/* No max-width: the canvas is rendered at exactly the width it should occupy, and a
+   max-width here would shrink a zoomed page back into the frame instead of letting
+   it scroll. */
+/* The page is inverted in dark mode, which is the only way a white A4 scan is
+   readable next to a dark interface: at 2am the page was the one bright rectangle
+   on the screen. invert(1) alone would also complement every hue, turning a red
+   warning box cyan, so hue-rotate(180deg) turns them back: the pair flips lightness
+   and leaves hue roughly where the publisher put it. Greys are unaffected by the
+   rotation, so white paper goes black and black ink goes white, which is the point.
+
+   The cost, and it is real: a PHOTOGRAPH inside a document becomes a negative, and
+   nothing in CSS can tell a photo from a flowchart. Most figures in this corpus are
+   line diagrams and algorithm trees, which inverts cleanly. If the negatives turn
+   out to matter more than the glare, this belongs behind a toggle beside the
+   highlight one rather than tied to the theme.
+
+   A filter here gives the canvas its own stacking context. The highlight layer is a
+   SIBLING, painted after it, so it still blends against these pixels: that is what
+   --hit-blend depends on, and why the two tokens travel together. */
+.page-stage canvas { display: block; height: auto; filter: var(--page-invert); }
+/* The highlight layer sits over the canvas in the SAME coordinate space, scaled
+   with it, so a box computed in PDF points lands on the right words at any zoom.
+   pointer-events: none keeps the text layer above it reachable. */
+.hit-layer { position: absolute; inset: 0; pointer-events: none; }
+/* Explicit rather than relying on the UA sheet: .hit-layer sets position, and a
+   future display rule here would silently beat [hidden] and leave the highlights on
+   screen with the button saying they are off. */
+.hit-layer[hidden] { display: none; }
+.hit-layer .box { position: absolute; border-radius: 3px; }
+/* The highlight itself: a fill over the words, one box per LINE, the way a marker
+   pen leaves ink on the lines it crossed. The point is that the reader can see
+   exactly which text the chunk covers, which a frame around a block cannot show:
+   a frame around eleven lines says nothing about whether the last line is included
+   in full or only up to its third word.
+
+   The blend mode is not a style choice, it follows the page under it, which is why
+   it is --hit-blend rather than a literal here. A flat rgba fill lightens the glyphs
+   under it towards the fill colour, which on a scanned page turns grey ink into pale
+   purple: that is the veil this project tried once and removed. A blend that can only
+   move the paper one way avoids it.
+
+   On an UNinverted page (light mode) the paper is white and the ink black, so the
+   fill must only ever darken: multiply leaves white paper tinted and black ink black.
+   On an INVERTED page (dark mode) the paper is black and the ink white, so it must
+   only ever lighten: screen lifts the black paper towards the accent and leaves the
+   white glyphs white. Using multiply on the inverted page was the bug this replaces,
+   and it is worth naming because it looks like nothing rather than like an error: a
+   dark page multiplied by anything stays dark, so the highlight simply was not there.
+
+   No outline and no halo. With a fill on every line the passage already has a shape
+   the eye lands on, and a frame around the block on top of it would be drawing the
+   same thing twice, less precisely. */
+.hit-layer .box.best {
+  background: var(--hit-fill);
+  mix-blend-mode: var(--hit-blend);
+}
+
+/* pdf.js's text layer: invisible text positioned over the rendered page, so the
+   document can be selected and copied like a web page while still LOOKING like the
+   PDF it is. Transparent rather than absent, so what the reader selects is the real
+   text and what they see is the real page.
+
+   The rules are pdf.js's own contract (viewer/text_layer_builder.css), written out
+   here rather than vendored as a second stylesheet: these six declarations are all
+   of it that a read-only viewer needs, and the production CSP serves one stylesheet
+   from this origin. --scale-factor is set by viewer.js; without it every span is
+   positioned at font-size zero. */
+.text-layer { position: absolute; inset: 0; overflow: hidden; line-height: 1;
+              text-size-adjust: none; forced-color-adjust: none; opacity: 1;
+              text-align: initial; }
+.text-layer span { position: absolute; white-space: pre; transform-origin: 0 0;
+                   color: transparent; cursor: text; }
+/* Selection has to be visible even though the text is not. */
+.text-layer ::selection { background: rgb(var(--accent-rgb) / .35); }
+.text-layer br { user-select: none; }
+
+/* The highlight toggle, over the top-right corner of the page. Over it rather
+   than in the bar because it is about what is on the page, and a reader comparing
+   the page with and without the colours should not have to look away from it to
+   flip them. At the top rather than the bottom: the reader arrives at the top of a
+   page, and on a long page the bottom corner is a scroll away from where they are
+   when the colours first get in the way of the words underneath. */
+.plain.overlay {
+  position: absolute; right: .6rem; top: .6rem; z-index: 2;
+  background: var(--card); box-shadow: 0 1px 6px rgb(0 0 0 / .25);
+  font-size: .82rem; padding: .3rem .55rem;
+}
+
+/* "PDF complet (N pages)", opening onto the two things that can be done with it.
+   A <details> rather than a <select> or a hand-rolled menu: it is keyboard
+   operable, it closes on Escape, and it needs no JavaScript to work. */
+.pdf-menu, .doc-search, .syntax-help { position: relative; }
+.pdf-menu > summary, .doc-search > summary, .syntax-help > summary {
+  list-style: none; cursor: pointer; display: inline-block;
+  font: inherit; padding: .35rem .6rem; border: 1px solid var(--line);
+  border-radius: .4rem; background: var(--bg); color: var(--fg);
+}
+.pdf-menu > summary:hover, .doc-search > summary:hover,
+.syntax-help > summary:hover { border-color: var(--accent); }
+/* A document the site may show but not hand over. It keeps the shape of the control it
+   replaces, so the row does not jump between a document that offers its file and one
+   that does not, and it is dimmed and not clickable because there is nothing behind it.
+   `help` rather than `not-allowed`: the reason is in the title attribute for a
+   pointer and one tap away for a finger (src/i18n.js, `tapNote`), and the pointer is
+   what invites the reader to go and read it. */
+.pdf-menu.restricted {
+  display: inline-block; padding: .35rem .6rem; border: 1px dashed var(--line);
+  border-radius: .4rem; color: var(--muted); cursor: help;
+}
+.restricted-note { color: var(--muted); }
+.pdf-menu > summary::-webkit-details-marker,
+.doc-search > summary::-webkit-details-marker,
+.syntax-help > summary::-webkit-details-marker { display: none; }
+.pdf-menu[open] > summary, .doc-search[open] > summary,
+.syntax-help[open] > summary {
+  border-color: var(--accent); color: var(--accent);
+}
+.pdf-menu-items, .doc-search-panel, .syntax-panel {
+  position: absolute; right: 0; top: calc(100% + .25rem); z-index: 3;
+  display: grid; min-width: max-content;
+  background: var(--card); border: 1px solid var(--line); border-radius: .4rem;
+  box-shadow: 0 2px 10px rgb(0 0 0 / .2); padding: .25rem;
+}
+/* Wider than the PDF menu because it holds a question rather than two verbs, and
+   capped so a narrow phone screen does not get a panel wider than the window. */
+.doc-search-panel { gap: .5rem; padding: .6rem; width: min(22rem, 80vw); }
+.doc-search-panel input[type="search"] {
+  font: inherit; padding: .4rem .5rem; border: 1px solid var(--line);
+  border-radius: .35rem; background: var(--bg); color: var(--fg); width: 100%;
+}
+.doc-search-panel fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: .2rem; }
+.doc-search-panel legend { padding: 0; color: var(--muted); font-size: .82rem; }
+.doc-search-panel label { display: flex; gap: .4rem; align-items: baseline;
+                          font-size: .88rem; cursor: pointer; }
+.doc-search-panel label[hidden] { display: none; }
+.doc-search-panel button { justify-self: start; }
+.pdf-menu-items a { padding: .35rem .6rem; border-radius: .3rem; text-decoration: none;
+                    color: var(--fg); }
+.pdf-menu-items a:hover { background: rgb(var(--accent-rgb) / .12); color: var(--accent); }
+
+/* The "?" beside the search box, and what it opens onto. A square-ish button so a
+   single character does not read as a clipped word, and the same height as the search
+   button next to it. */
+/* The control is the flex item, so it is the one that stretches; the summary fills it.
+   Without both, the button hangs at the top of a two-row box while "Rechercher" beside
+   it is full height. */
+.searchbox .syntax-help { align-self: stretch; }
+.syntax-help > summary { text-align: center; min-width: 2.2rem; height: 100%;
+                         display: flex; align-items: center; justify-content: center; }
+/* Prose, not a menu of links, so it needs a measure: `min-width: max-content` (which
+   the shared rule above gives the other two) would lay four paragraphs out on one
+   line. Capped against the viewport as well, because this panel hangs off the right
+   edge of a control that is itself near the right edge of a phone screen. */
+.syntax-panel { min-width: 0; width: min(30rem, 88vw); padding: .35rem .75rem .6rem;
+                max-height: 70vh; overflow-y: auto; }
+
+footer.bot { border-top: 1px solid var(--line); margin-top: 2rem; padding: 1rem 0 2rem;
+             color: var(--muted); font-size: .85rem; }
+.bot p { margin: 0; }
+.bot p + p { margin-top: .4rem; }
+/* The corpus count is only written on the search page, and the viewer would otherwise
+   open the footer with a blank line where it would have gone. */
+.bot p:empty { display: none; }
+/* Footer links stay in the muted colour so the credit line reads as one sentence
+   rather than as a row of calls to action; the underline still marks them. */
+.bot a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.bot a:hover { color: var(--accent); }
+/* A button that reads as one of those links (site.js, the release notes): it opens a
+   popup rather than going anywhere, so it stays a <button> for the keyboard and the
+   screen reader, and borrows the links' look so the footer stays one register. */
+.link-btn { background: none; border: 0; padding: 0; font: inherit; color: inherit;
+            cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.link-btn:hover { color: var(--accent); }
+.link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+/* The guided tour's caption (src/tour.js). Fixed to the bottom of the viewport rather
+   than positioned against the step's element: that element is being scrolled to, and
+   chasing a moving target is what makes tours flicker. Here rather than in tour.js
+   because docker/Caddyfile serves style-src 'self', and one stylesheet is where every
+   other floating panel on the site already takes its shape from. Above the sticky
+   header and the facet popups, below the release-notes overlay, which is modal. */
+.tour-bubble {
+  position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%); z-index: 50;
+  width: min(34rem, calc(100vw - 2rem));
+  background: var(--card); color: var(--fg);
+  border: 1px solid var(--accent); border-radius: .6rem;
+  padding: .8rem .9rem .7rem; box-shadow: 0 4px 24px rgb(0 0 0 / .25); font-size: .92rem;
+}
+.tour-bubble p { margin: 0 0 .6rem; white-space: pre-line; }
+/* Flipped to the top by tour.js when the bottom would cover what the step describes
+   (the "?" panel hangs down from the box and is up to 70vh tall). */
+.tour-bubble.tour-bubble-top { top: 1rem; bottom: auto; }
+/* What the step points at, placed by tour.js in page coordinates: to the left of the
+   a wide element pointing right, or above a small control pointing down. */
+.tour-arrow { position: absolute; z-index: 49; width: 28px; height: 28px;
+              font-size: 26px; line-height: 28px; text-align: center;
+              color: rgb(var(--accent-rgb)); pointer-events: none; }
+/* The counter on the left, then "skip", then the way forward, last and outlined. */
+/* Wraps rather than overflows: four controls in a 390px phone caption are tight. */
+.tour-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.tour-count { margin-right: auto; color: var(--muted); font-size: .82rem;
+              font-variant-numeric: tabular-nums; }
+.tour-skip { border-color: transparent; background: none; color: var(--muted); }
+.tour-next { border-color: var(--accent); color: var(--accent); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .pulse { animation: pulse 1.1s ease-out 3; }
+  .tour-arrow { animation: nudge-right .7s ease-in-out infinite alternate; }
+  .tour-arrow.tour-arrow-down { animation-name: nudge-down; }
+  /* Fades in where it is placed, then glides when a scroll or a resize moves it. */
+  .tour-arrow { opacity: 0; transition: opacity .3s ease; }
+  .tour-arrow.tour-arrow-placed { opacity: 1; transition: opacity .3s ease, left .35s ease, top .35s ease; }
+  /* Each step's caption rises into place, and so does a panel the tour unfolds. */
+  .tour-bubble.tour-enter { animation: tour-in .28s ease-out; }
+  .touring details[open] > :not(summary) { animation: tour-drop .22s ease-out; }
+  @keyframes tour-in { from { opacity: 0; transform: translateX(-50%) translateY(10px); } }
+  @keyframes tour-drop { from { opacity: 0; transform: translateY(-6px); } }
+  @keyframes nudge-right { to { transform: translateX(6px); } }
+  @keyframes nudge-down { to { transform: translateY(6px); } }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0); }
+    40% { box-shadow: 0 0 0 .4rem rgb(var(--accent-rgb) / .35); }
+  }
+}
+
+/* The release-notes popup (src/changelog.js). Fixed overlay plus a card that is at
+   most as tall as the viewport, with only its body scrolling: a release with thirty
+   bullets must not push its own close button off the screen, which is what a card
+   that grows with its content does on a phone.
+
+   No style attributes anywhere in changelog.js, so everything it needs is here:
+   docker/Caddyfile serves style-src 'self', which blocks a style="..." attribute
+   outright while leaving el.style.x from script alone. */
+.cl-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem; background: rgb(0 0 0 / .45);
+}
+/* The page behind stops scrolling while the popup is open. Without it, scrolling to
+   the end of the notes carries on scrolling the result list underneath. */
+body.cl-open { overflow: hidden; }
+.cl-card {
+  display: flex; flex-direction: column; gap: .5rem;
+  width: min(42rem, 100%); max-height: min(80vh, 44rem);
+  background: var(--card); color: var(--fg);
+  border: 1px solid var(--line); border-radius: .6rem;
+  padding: 1rem 1.1rem; box-shadow: 0 4px 24px rgb(0 0 0 / .3);
+}
+.cl-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.cl-title { margin: 0; font-size: 1.15rem; }
+.cl-x { font-size: 1.1rem; line-height: 1; padding: .15rem .45rem; }
+.cl-sub { margin: 0; color: var(--muted); font-size: .9rem; }
+.cl-body { overflow-y: auto; padding-right: .25rem; }
+.cl-release + .cl-release { margin-top: 1.2rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.cl-version { display: flex; align-items: baseline; gap: .5rem; margin: 0 0 .3rem; font-size: 1rem; }
+.cl-date { color: var(--muted); font-size: .85rem; font-weight: normal; }
+.cl-cat { margin: .8rem 0 .2rem; font-size: .9rem; color: var(--accent); }
+.cl-items { margin: 0; padding-left: 1.1rem; }
+.cl-items li { margin: .35rem 0; }
+/* The commit link is a footnote to the bullet, not part of the sentence. */
+.cl-sha { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .78rem;
+          color: var(--muted); text-decoration: none; }
+.cl-sha:hover { color: var(--accent); text-decoration: underline; }
+.cl-foot { display: flex; justify-content: flex-end; gap: .5rem; }

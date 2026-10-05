@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="justelesdocs">
+  <title>justelesdocs</title>
+  <defs><clipPath id="solid"><rect x="0" y="0" width="166" height="256"/></clipPath></defs>
+  <g transform="rotate(0 128 128)">
+    <g clip-path="url(#solid)"><rect x="50" y="68" width="156" height="120" fill="#F1E4C6" stroke="#CDB88C" stroke-width="2"/><rect x="30" y="56" width="26" height="144" rx="13.0" fill="#8A5CF0"/><ellipse cx="43.0" cy="60" rx="13.0" ry="4" fill="#6A3FD6"/><ellipse cx="43.0" cy="196" rx="13.0" ry="4" fill="#6A3FD6"/><rect x="200" y="56" width="26" height="144" rx="13.0" fill="#8A5CF0"/><ellipse cx="213.0" cy="60" rx="13.0" ry="4" fill="#6A3FD6"/><ellipse cx="213.0" cy="196" rx="13.0" ry="4" fill="#6A3FD6"/>
+    <g fill="none" stroke="#4B2A9E" stroke-width="10.8" stroke-linecap="round">
+      <path d="M 101.0 95.6 C 101.0 131.6 111.8 138.8 128.0 138.8 C 144.2 138.8 155.0 131.6 155.0 95.6"/>
+      <line x1="128.0" y1="90.2" x2="128.0" y2="165.8"/>
+    </g>
+    </g>
+    <!-- Trailing half dissolving into pixels. -->
+    <g>
+      <rect x="166.8" y="66.3" width="12.0" height="12.0" rx="1.6" fill="#F1E4C6" transform="rotate(4.2 172.8 72.3)"/>
+      <rect x="167.4" y="81.8" width="11.0" height="11.0" rx="1.6" fill="#F1E4C6" transform="rotate(1.3 172.9 87.3)"/>
+      <rect x="167.7" y="95.6" width="9.2" height="9.2" rx="1.6" fill="#F1E4C6" transform="rotate(2.8 172.3 100.2)"/>
+      <rect x="168.0" y="107.8" width="12.0" height="12.0" rx="1.6" fill="#F1E4C6" transform="rotate(-2.9 174.0 113.8)"/>
+      <rect x="167.8" y="122.6" width="8.7" height="8.7" rx="1.6" fill="#F1E4C6" transform="rotate(-1.5 172.2 127.0)"/>
+      <rect x="168.0" y="135.0" width="10.5" height="10.5" rx="1.6" fill="#F1E4C6" transform="rotate(-5.9 173.3 140.2)"/>
+      <rect x="167.9" y="151.5" width="9.1" height="9.1" rx="1.6" fill="#F1E4C6" transform="rotate(2.2 172.5 156.0)"/>
+      <rect x="168.6" y="162.8" width="11.8" height="11.8" rx="1.6" fill="#F1E4C6" transform="rotate(5.0 174.5 168.7)"/>
+      <rect x="167.5" y="177.2" width="11.4" height="11.4" rx="1.6" fill="#F1E4C6" transform="rotate(5.7 173.3 182.9)"/>
+      <rect x="185.5" y="68.0" width="10.7" height="10.7" rx="1.6" fill="#F1E4C6" transform="rotate(0.5 190.9 73.4)"/>
+      <rect x="185.0" y="82.4" width="11.3" height="11.3" rx="1.6" fill="#F1E4C6" transform="rotate(-2.3 190.6 88.0)"/>
+      <rect x="184.9" y="95.1" width="11.2" height="11.2" rx="1.6" fill="#F1E4C6" transform="rotate(6.7 190.5 100.7)"/>
+      <rect x="184.3" y="108.6" width="9.8" height="9.8" rx="1.6" fill="#F1E4C6" transform="rotate(3.2 189.2 113.5)"/>
+      <rect x="184.4" y="123.1" width="11.2" height="11.2" rx="1.6" fill="#F1E4C6" transform="rotate(-3.0 190.1 128.7)"/>
+      <rect x="185.0" y="135.8" width="10.5" height="10.5" rx="1.6" fill="#F1E4C6" transform="rotate(2.4 190.3 141.1)"/>
+      <rect x="184.3" y="149.9" width="9.2" height="9.2" rx="1.6" fill="#F1E4C6" transform="rotate(6.9 188.9 154.5)"/>
+      <rect x="185.8" y="164.5" width="8.4" height="8.4" rx="1.6" fill="#F1E4C6" transform="rotate(6.5 190.0 168.7)"/>
+      <rect x="183.9" y="176.6" width="10.7" height="10.7" rx="1.6" fill="#F1E4C6" transform="rotate(-3.6 189.3 182.0)"/>
+      <rect x="201.2" y="54.8" width="10.5" height="10.5" rx="1.6" fill="#6A3FD6" transform="rotate(6.9 206.4 60.1)"/>
+      <rect x="203.0" y="69.1" width="8.4" height="8.4" rx="1.6" fill="#8A5CF0" transform="rotate(4.3 207.2 73.3)"/>
+      <rect x="201.3" y="83.1" width="8.8" height="8.8" rx="1.6" fill="#8A5CF0" transform="rotate(-8.2 205.7 87.5)"/>
+      <rect x="201.0" y="108.3" width="10.0" height="10.0" rx="1.6" fill="#8A5CF0" transform="rotate(6.1 206.0 113.3)"/>
+      <rect x="202.6" y="123.0" width="8.3" height="8.3" rx="1.6" fill="#8A5CF0" transform="rotate(-9.0 206.7 127.2)"/>
+      <rect x="201.7" y="150.9" width="7.8" height="7.8" rx="1.6" fill="#8A5CF0" transform="rotate(4.8 205.6 154.8)"/>
+      <rect x="201.0" y="163.5" width="8.8" height="8.8" rx="1.6" fill="#8A5CF0" transform="rotate(5.2 205.4 167.8)"/>
+      <rect x="202.7" y="177.3" width="10.6" height="10.6" rx="1.6" fill="#8A5CF0" transform="rotate(4.0 208.0 182.6)"/>
+      <rect x="202.5" y="190.2" width="8.4" height="8.4" rx="1.6" fill="#6A3FD6" transform="rotate(-7.8 206.7 194.4)"/>
+      <rect x="218.3" y="55.3" width="9.9" height="9.9" rx="1.6" fill="#6A3FD6" transform="rotate(-2.5 223.2 60.3)"/>
+      <rect x="220.3" y="68.9" width="7.7" height="7.7" rx="1.6" fill="#8A5CF0" transform="rotate(2.5 224.1 72.8)"/>
+      <rect x="219.3" y="82.3" width="7.3" height="7.3" rx="1.6" fill="#8A5CF0" transform="rotate(-10.3 223.0 85.9)"/>
+      <rect x="218.2" y="97.0" width="7.7" height="7.7" rx="1.6" fill="#8A5CF0" transform="rotate(0.2 222.1 100.9)"/>
+      <rect x="218.6" y="150.5" width="8.6" height="8.6" rx="1.6" fill="#8A5CF0" transform="rotate(2.9 222.9 154.8)"/>
+      <rect x="219.3" y="189.3" width="8.5" height="8.5" rx="1.6" fill="#6A3FD6" transform="rotate(-10.8 223.5 193.5)"/>
+      <rect x="218.2" y="167.4" width="5.3" height="5.3" rx="1.6" fill="#6A3FD6" transform="rotate(-8.0 220.9 170.0)"/>
+      <rect x="233.9" y="58.5" width="4.5" height="4.5" rx="1.6" fill="#6A3FD6" transform="rotate(0.4 236.2 60.8)"/>
+      <rect x="223.1" y="152.9" width="5.4" height="5.4" rx="1.6" fill="#6A3FD6" transform="rotate(3.7 225.8 155.7)"/>
+    </g>
+  </g>
+</svg>

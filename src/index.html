@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{name}}</title>
+<meta name="description" content="{{description}}">
+<!-- No external anything: docker/Caddyfile serves default-src 'self' and would
+     block a CDN font or script outright. See scripts/vendor.py. -->
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="stylesheet" href="app.css">
+<!-- Runtime config. In production Caddy serves the container-rendered version of
+     this path from a tmpfs; the file in src/ is the local-dev fallback. Loaded
+     before the modules so window.__APP_CONFIG__ exists when they read it. -->
+<script src="app-config.js"></script>
+<!-- The version, generated into dist/ by scripts/stage.py from the VERSION file.
+     Absent in an unstaged src/ tree, which changelog.js treats as "say nothing". -->
+<script src="app-version.js"></script>
+<!-- The corpus's branding, languages and string overlay (window.__SITE__),
+     generated into dist/ by scripts/stage.py from corpus.toml. Before every
+     module, because store.js and i18n.js read it at import. -->
+<script src="site-config.js"></script>
+<!-- Metrics and the development banner, both off unless the container
+     environment turns them on. Deferred module: nothing here blocks the page. -->
+<script type="module" src="site.js"></script>
+<!-- The release-notes popup: opens by itself only for a reader who has been here
+     before and whose last visit predates this version. -->
+<script type="module" src="changelog.js"></script>
+</head>
+<body data-page="search">
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./">{{brand}}<span>{{brand_em}}</span></a>
+    <div class="spacer"></div>
+    <!-- The two ways into the corpus, both present on every page and always in
+         this order, so the pair reads as a switch between two views rather than a
+         link whose label changes under you. A reader who knows which document
+         they want has no question to ask; a reader looking at the list may want
+         to ask one after all. `aria-current="page"` marks the one you are on, and
+         is what the accent border comes from (app.css); the viewer is neither
+         page, so there it marks nothing. -->
+    <nav class="views" data-i18n-attr="aria-label:nav_label">
+      <a class="plain nav" href="./" data-i18n="nav_search" aria-current="page"></a>
+      <a class="plain nav" href="browse.html" data-i18n="nav_browse"></a>
+      <button class="plain" id="tour-btn" data-i18n="tour_start"></button>
+    </nav>
+    <button class="plain" id="lang-btn"></button>
+    <button class="plain" id="theme-btn" data-i18n-attr="aria-label:theme_toggle"></button>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1 class="tagline" data-i18n="tagline"></h1>
+
+  <form class="searchbox" id="form" role="search">
+    <!-- maxlength is the cheap half of the cap in search.js: it stops the typing
+         and the pasting, while the parse-time check catches what arrives by URL,
+         where no attribute applies. Neither is security, both are courtesy: the
+         real limits are Caddy's request body cap and the encoder's own. -->
+    <!-- Two rows rather than one, and it grows with what is typed. A single-line
+         box is a keyword box: it shows a handful of words at a time and rewards
+         writing that way. This site wants a question, and the shape of the control
+         is the only part of that instruction a reader reads. Enter still searches;
+         Shift+Enter is the newline, which is why this is a textarea and not an
+         input, and why the form's submit handler stays where it was. -->
+    <textarea id="q" name="q" rows="2" autocomplete="off" autofocus maxlength="512"
+              data-i18n-attr="placeholder:search_placeholder,aria-label:search_label"></textarea>
+    <button class="plain" type="submit" id="search-btn" data-i18n="search_button"></button>
+    <!-- The query algebra and the three things most queries get wrong, behind a "?" on
+         the box's own row rather than inside "Recherche avancée". Two reasons for the
+         move: a reader looking for help on how to ask looks beside the box they are
+         typing in, not under a summary about filters, and a reader who opened that
+         summary to set a filter was made to scroll past four paragraphs of prose to
+         reach the knobs they came for.
+
+         A <details> in the same idiom as the viewer's PDF menu (src/app.css), which
+         means it is keyboard operable, closes on Escape and needs no JavaScript of its
+         own. "?" rather than a word because this sits in the same flex row as the box
+         and the search button, and on a 320px screen a third label eats the box; the
+         aria-label and the tooltip say it in full. -->
+    <details class="syntax-help" id="syntax-help">
+      <summary id="syntax-summary" data-i18n-attr="aria-label:syntax_help,title:syntax_help">?</summary>
+      <div class="syntax syntax-panel" id="syntax">
+        <p data-i18n="syntax_sentence"></p>
+        <!-- And the same again for acronyms, which are the shortest possible query and
+             the one a specialist reader reaches for first. -->
+        <p data-i18n="syntax_context"></p>
+        <!-- The cross-language claim, with the limit attached to it. One multilingual
+             model and no translation step anywhere is what lets a French question
+             reach an English guideline at all, and the eval set says it works: it also
+             says it works about half as well as asking in the document's own language
+             (page@10 0.39 against 0.70 and 0.85). Stating only the first half would
+             leave a reader concluding the corpus has nothing on their question. -->
+        <p data-i18n="syntax_language"></p>
+        <ul>
+          <li><code data-i18n="syntax_example_minus"></code> <span data-i18n="syntax_minus"></span></li>
+          <li><code data-i18n="syntax_example_or"></code> <span data-i18n="syntax_or"></span></li>
+        </ul>
+      </div>
+    </details>
+  </form>
+
+  <!-- The metadata knobs, and since the syntax help moved up beside the box (above)
+       nothing else. Still one disclosure and not two: stacking a second summary here
+       made the page look as though it had two settings menus above its results.
+       Collapsed, and deliberately below the box, because a reader who types an
+       ordinary question must not have to read anything first.
+       The summary text is set by app.js rather than by data-i18n, because it also
+       has to say when a filter is narrowing the corpus. -->
+  <details class="advanced" id="advanced">
+    <summary></summary>
+
+    <!-- Same markup as the corpus listing's panel, minus the name box, which only
+         makes sense against a list of documents. -->
+    <div class="filters" id="filters" aria-labelledby="filters-title">
+      <h2 class="filters-title" id="filters-title" data-i18n="filters"></h2>
+      <div class="facets" id="facets"></div>
+      <div class="filter-body">
+        <button class="plain" type="button" id="reset-btn" data-i18n="reset_filters"></button>
+      </div>
+    </div>
+  </details>
+
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+  <!-- Filled by app.js when a question arrives scoped to one document, which is what
+       the viewer's own search box sends. Hidden the rest of the time: a reader who
+       searched the whole corpus does not need to be told so. -->
+  <p class="hint" id="scope-note" hidden></p>
+  <!-- Shown until a question is asked, and hidden by app.js once one is. Two
+       elements rather than one templated string: the link is a link, and a
+       translated sentence with markup in it would have to be parsed as HTML. -->
+  <p class="hint" id="landing-hint">
+    <span data-i18n="landing_browse"></span>
+    <a href="browse.html" data-i18n="landing_browse_link"></a>
+  </p>
+  <!-- Hidden until a query has results: with no query the list below IS the corpus,
+       one row a document, so there is nothing to switch between. Labels are written
+       by app.js, which also carries the pressed state. -->
+  <div class="result-controls" id="result-controls" hidden>
+    <div class="view-toggle" id="view-toggle" role="group"
+         data-i18n-attr="aria-label:view_label">
+      <button class="plain" type="button" data-view="passages"></button>
+      <button class="plain" type="button" data-view="documents"></button>
+    </div>
+    <!-- The lexical half of the ranking, off by default and switchable because the
+         two halves answer differently: the embedding finds a passage that means
+         what was asked, BM25 finds one that says it in the same words. Unticked,
+         the list is the model's own answer, which is the one worth judging.
+         Ticking it re-ranks what is already on screen, with no request to the
+         encoder. -->
+    <label class="rescore-toggle" id="rescore-toggle">
+      <input type="checkbox" id="rescore-check">
+      <span data-i18n="rescore_label"></span>
+    </label>
+    <!-- Ticked by default, unlike the one above: a bibliography answers no reader's
+         question, and a reader who wants one can untick this. The score it acts on
+         is baked into the index (build_index.py mines the axis from the corpus), so
+         ticking it costs no encoder call and adds nothing to the query. -->
+    <label class="rescore-toggle" id="norefs-toggle">
+      <input type="checkbox" id="norefs-check">
+      <span data-i18n="norefs_label"></span>
+    </label>
+    <!-- Ticked by default as well, and the only one of the three that acts on a
+         DOCUMENT rather than on a passage: a guideline is meant to be replaced by
+         its next edition, so the year is evidence about the answer and the
+         embedding cannot see it. Costs nothing per search either, the year being
+         in meta.json already. -->
+    <label class="rescore-toggle" id="recent-toggle">
+      <input type="checkbox" id="recent-check">
+      <span data-i18n="recent_label"></span>
+    </label>
+    <!-- Not a box but three choices, because "figures only" is a question of its
+         own (the decision tree, the dose chart) and not the absence of text.
+         Included by default: a described figure competes with the text on its
+         own score, like any passage. -->
+    <label class="rescore-toggle" id="figures-toggle">
+      <span data-i18n="figures_label"></span>
+      <select id="figures-select">
+        <option value="include" data-i18n="figures_include"></option>
+        <option value="exclude" data-i18n="figures_exclude"></option>
+        <option value="only" data-i18n="figures_only"></option>
+      </select>
+    </label>
+  </div>
+  <ol class="results" id="results"></ol>
+  <!-- Under the last result, where a reader who has read the list and not found what
+       they came for is looking. The level filter is on by default and narrows the
+       corpus before anyone touches anything, so the one place its effect is felt is
+       the end of a list that stopped too early; the panel above says what the level
+       is, this says what it is costing and undoes one notch of it. Written by app.js
+       (paintWiden), which is also what knows whether there is a wider level left. -->
+  <p class="widen" id="widen" hidden></p>
+</main>
+
+<!-- Filled by site.js (corpus size, source, disclaimer, credits) so the same footer
+     renders on every page in whichever language the reader picked. -->
+<footer class="bot" id="foot"></footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

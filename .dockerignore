@@ -1,0 +1,41 @@
+# Docker build context exclusions.
+#
+# docker/search.Dockerfile builds from the repo root (it imports src/search.js),
+# so this file IS load-bearing: it is what keeps that context to a few files.
+# docker/web.Dockerfile has no COPY at all and compose points its context at
+# docker/, so for that image this is defence in depth.
+#
+# A build context is uploaded to the Docker daemon WHOLESALE before the first
+# instruction runs. data/ holds roughly 657 MB of documents, and 384 of them may
+# never leave this machine (44 are commercial books under explicit no-reposting
+# licences; see CLAUDE.md). If anyone ever adds a Dockerfile whose context is the
+# repo root, without this file that upload would include all of them.
+#
+# The list is an ALLOW-LIST in spirit: deny everything, then re-admit the few
+# things a build could legitimately need. An exclude-list fails open, and "fails
+# open" here means shipping copyrighted material.
+*
+
+# Re-admit only what a build may need; each line is added by whoever adds the
+# Dockerfile that needs it, with a reason.
+#   docker/   web.Dockerfile's context (it COPYs nothing, but compose points there)
+#   server/   the search service (docker/search.Dockerfile), whole
+#   src/...   the four ES modules the service imports from the site: the shipped
+#             ranker, its two imports and i18n.js's own import, store.js. Named one by one, never `!src/`, so the
+#             page's own files (and anything added to src/ later) stay out.
+!docker/
+!server/
+!src/search.js
+!src/i18n.js
+!src/paths.js
+!src/store.js
+
+# Belt and braces: even if the pattern above is ever widened to `!*`, these stay
+# out. Docker applies later patterns last, so these must come after any re-admit.
+data/
+dist/
+models/
+.git/
+__pycache__/
+*.pyc
+deploy.sh

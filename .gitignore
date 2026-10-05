@@ -1,0 +1,17 @@
+data/GUIDELINES
+data/UNSURE
+data/DISCARDED
+__pycache__/
+data/chunks*/
+data/OCR/
+dist/
+data/vectors/
+data/grid/
+data/bench/*/
+data/bench/docs.txt
+data/index-sweep/
+/deploy.sh
+/models/
+docker/.env
+data/private/
+/local/

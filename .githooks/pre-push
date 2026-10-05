@@ -1,0 +1,243 @@
+#!/usr/bin/env bash
+# Pre-push hook. Activate with: git config core.hooksPath .githooks
+#
+# One of these checks exists for a reason that outranks code quality: this repo sits
+# next to 657 MB of documents, 44 of which carry explicit no-reposting licences, and
+# the whole project exists in its current form because that material cannot be
+# redistributed. A pushed PDF cannot be unpushed. So the first check refuses a
+# push whose tip tree contains one, or any commit of which adds one: a file added
+# and then reverted in the range is still in the history that leaves this machine.
+# .githooks/refuse_corpus.sh holds it.
+#
+# The rest is the test suite and the gates. The suite (tests/run.py) runs everywhere,
+# because it needs neither the corpus nor a built index: it covers the build-time
+# Python scripts and the pure-text half of src/. The gates need their own input, so
+# each runs only when that input is on disk and prints a skip when it is not, rather
+# than refusing a push from a machine that legitimately cannot run it: verify_chunks.py
+# over the corpus, check_search.mjs over the built index, catalog.py against
+# data/MANIFEST.tsv. All of it is cheap on the machine that can run it, a few seconds
+# in total, which is the reason it can sit in a hook at all.
+#
+# They test the WORKING TREE, not the tree being pushed, which is a real difference
+# worth knowing about: they check what is on disk now. Making it exact would mean
+# checking the pushed tree out into a temp directory and rebuilding an index inside
+# it, which is hours of embedding, and the working tree is what was just edited
+# anyway. The corpus refusal (refuse_corpus.sh) is the one check that does inspect the pushed tree,
+# because that one is about what leaves this machine rather than about correctness.
+#
+# Bypass with `git push --no-verify` if you must.
+#
+# Written by Claude Code.
+set -u
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+status=0
+
+# The corpus refusal is its own script so a test can run it end to end, and its
+# header says what it inspects and why. It reads the refs being pushed from this
+# hook's stdin, which is why it runs first: nothing else here reads stdin.
+.githooks/refuse_corpus.sh || status=1
+
+# Syntax only, and only on what is tracked. `node --check` on a module is enough to
+# catch the class of mistake that gets pushed by accident, and it needs no install.
+# The source goes on stdin as a module rather than as a path: for a .js file with no
+# package.json, node 22 guesses the module type and that guess exits 0 on a stray
+# `});`, which is how a broken src/app.js once got past this check.
+if command -v node > /dev/null 2>&1; then
+  while IFS= read -r file; do
+    node --check --input-type=module < "$file" > /dev/null 2>&1 || {
+      echo "[pre-push] $file does not parse:" >&2
+      node --check --input-type=module < "$file" >&2
+      status=1
+    }
+  done < <(git ls-files 'src/*.js' 'scripts/*.mjs')
+else
+  echo "[pre-push] note: node not found, skipping the JavaScript syntax check" >&2
+fi
+
+# Same idea for the shell scripts that travel to the server. smoke_deployed.sh is
+# piped over ssh by deploy.sh, so a syntax error in it surfaces as a confusing
+# remote failure in the middle of a deploy rather than as a parse error here.
+while IFS= read -r file; do
+  sh -n "$file" 2>/dev/null || {
+    echo "[pre-push] $file does not parse as POSIX sh:" >&2
+    sh -n "$file" >&2
+    status=1
+  }
+done < <(git ls-files 'scripts/*.sh')
+
+if command -v python > /dev/null 2>&1; then
+  while IFS= read -r file; do
+    python -c "import ast,sys; ast.parse(open(sys.argv[1]).read(), sys.argv[1])" "$file" || status=1
+  done < <(git ls-files 'scripts/*.py')
+else
+  echo "[pre-push] note: python not found, skipping the Python syntax check" >&2
+fi
+
+# --- The test suite --------------------------------------------------------------
+# One command for both halves (pytest and node --test); tests/run.py explains why it
+# is one. It needs no corpus and no index, so unlike the gates below it is expected to
+# run on every machine. uv builds the pytest environment on the fly, which costs about
+# a second after the first run.
+if command -v uv > /dev/null 2>&1; then
+  echo "[pre-push] tests/run.py"
+  if ! test_output="$(uv run tests/run.py 2>&1)"; then
+    echo "[pre-push] REFUSED: the test suite does not pass." >&2
+    echo "$test_output" | sed 's/^/  /' >&2
+    status=1
+  fi
+else
+  echo "[pre-push] note: uv not found, skipping the test suite" >&2
+fi
+
+# What this push adds on top of the remote, used twice below. Empty when the branch
+# has no upstream yet (the first push of a new branch), in which case the checks that
+# need a range are skipped rather than guessing one.
+base="$(git rev-parse --verify --quiet '@{upstream}' || true)"
+
+# --- The gates -------------------------------------------------------------------
+# EMBED_URL is pointed at the usual local encoder so that the live-query part of
+# check_search.mjs runs whenever that service happens to be up. It skips itself when
+# nothing answers, so a push is never refused because a local service is stopped.
+export EMBED_URL="${EMBED_URL:-http://127.0.0.1:8461}"
+
+# The corpus gates below read the corpus named by CORPUS_DIR (scripts/lib/corpus.py),
+# made absolute here so the scripts resolve it the same way from this directory.
+# Unset means a checkout of the software alone: every corpus gate skips with a note,
+# exactly as on a clone without the corpus.
+corpus=""
+if [ -n "${CORPUS_DIR:-}" ]; then
+  corpus="$(realpath "$CORPUS_DIR")"
+  export CORPUS_DIR="$corpus"
+else
+  echo "[pre-push] note: CORPUS_DIR not set, skipping every corpus gate" >&2
+fi
+
+if [ -n "$corpus" ] && [ -d "$corpus/data/chunks" ]; then
+  if command -v uv > /dev/null 2>&1; then
+    echo "[pre-push] verify_chunks.py"
+    uv run scripts/verify_chunks.py > /dev/null 2>&1 || {
+      echo "[pre-push] REFUSED: the chunk invariants do not hold. Re-run for the detail:" >&2
+      echo "[pre-push]   uv run scripts/verify_chunks.py" >&2
+      status=1
+    }
+  else
+    echo "[pre-push] note: uv not found, skipping verify_chunks.py" >&2
+  fi
+else
+  echo "[pre-push] note: no data/chunks, skipping verify_chunks.py (clone without the corpus)" >&2
+fi
+
+# CATALOG.md is the only public account of what the corpus holds, and it is
+# generated. A stale one describes documents the site no longer serves, which is
+# worse than no catalog: it is a wrong one that looks maintained. The script itself
+# says nothing and returns cleanly on a clone with no corpus.
+if [ -n "$corpus" ] && [ -d "$corpus/data/chunks" ] && command -v uv > /dev/null 2>&1; then
+  echo "[pre-push] catalog.py --check"
+  if ! catalog_output="$(uv run scripts/catalog.py --check 2>&1)"; then
+    echo "$catalog_output" | sed 's/^/[pre-push]   /' >&2
+    echo "[pre-push] REFUSED: CATALOG.md does not match the corpus." >&2
+    status=1
+  fi
+fi
+
+if [ -n "$corpus" ] && [ -f "$corpus/dist/index/meta.json" ]; then
+  if command -v node > /dev/null 2>&1; then
+    echo "[pre-push] check_search.mjs"
+    # Output is kept on failure only. The gate prints ~25 ok lines on success, which
+    # would bury the one line that matters in the middle of a push.
+    if ! gate_output="$(node scripts/check_search.mjs 2>&1)"; then
+      echo "$gate_output" | sed 's/^/[pre-push]   /' >&2
+      echo "[pre-push] REFUSED: the search gate failed." >&2
+      status=1
+    fi
+  else
+    echo "[pre-push] note: node not found, skipping check_search.mjs" >&2
+  fi
+else
+  echo "[pre-push] note: no dist/index, skipping check_search.mjs (build one with build_index.py)" >&2
+fi
+
+# The browser gates are NOT run here: they need a browser and a served tree, so they
+# cost tens of seconds and an external playwright install. They are also the only gates
+# that can see a highlight land on the wrong words, or the development banner refuse to
+# go away, so a push that touches src/ gets a reminder rather than silence.
+if [ -n "$base" ] && [ -n "$(git diff --name-only "$base" HEAD -- src/)" ]; then
+  echo "[pre-push] note: src/ changed in this push, and the browser gates did not run:" >&2
+  echo "[pre-push]   PW=<playwright install> SITE=http://127.0.0.1:8649 node scripts/check_ui.mjs" >&2
+  echo "[pre-push]   PW=<playwright install> SITE=http://127.0.0.1:8649 node scripts/check_chrome.mjs" >&2
+fi
+
+# The bilingual pair is a documented invariant, and the failure mode is a French
+# reader and an English reader being told different things about a medical corpus.
+# Checked against the last common state rather than per commit, so splitting a
+# translation across two commits in one push is fine.
+if [ -n "$base" ]; then
+  changed="$(git diff --name-only "$base" HEAD -- README.md README.en.md)"
+  if [ "$changed" = "README.md" ] || [ "$changed" = "README.en.md" ]; then
+    echo "[pre-push] REFUSED: only $changed changed. README.md and README.en.md must stay in sync." >&2
+    status=1
+  fi
+  # Both files touched is not the same as both files saying the same thing: a section
+  # added to one and forgotten in the other passes the rule above. Section headings
+  # are the one structure a translation must preserve, so they are what gets compared;
+  # word order and sentence length are free to differ, and do.
+  fr_sections="$(grep -c '^## ' README.md || true)"
+  en_sections="$(grep -c '^## ' README.en.md || true)"
+  if [ "$fr_sections" != "$en_sections" ]; then
+    echo "[pre-push] REFUSED: README.md has $fr_sections sections and README.en.md has $en_sections." >&2
+    echo "[pre-push]   One language gained a section the other did not. They are one document." >&2
+    status=1
+  fi
+fi
+
+# --- the curation backlog --------------------------------------------------------
+# The guideline level control ships ON, and `matchesGuideline` in src/search.js never
+# hides a document whose `guideline` cell is blank. That is the right runtime
+# behaviour (418 of the 534 rows were uncurated the day the column was added, and
+# hiding them would have left the default search covering a fifth of the corpus) and
+# exactly the kind of thing that is then forgotten for months, because nothing on the
+# site looks wrong: an untiered article simply keeps showing up in a search for
+# recommendations.
+#
+# So it ASKS rather than refuses. The blanks are a backlog, not a broken tree, and a
+# hook that refused them would refuse every push until the backlog is empty. Asked
+# last, once everything else has passed, so nobody answers a question and then waits
+# two minutes to be told the tests failed anyway.
+if [ "$status" -eq 0 ] && [ -n "$corpus" ] && [ -f "$corpus/data/MANIFEST.tsv" ]; then
+  # The tier column is the corpus's ([tiers] column in corpus.toml); a corpus with no
+  # tiers gets an empty name, which the awk below matches to no column and counts 0.
+  tier="$(python -c 'import sys, tomllib
+print(tomllib.load(open(sys.argv[1], "rb")).get("tiers", {}).get("column", ""))' \
+          "$corpus/corpus.toml" 2>/dev/null || true)"
+  untiered="$(awk -v tier="$tier" -F'\t' 'NR==1 {for (i = 1; i <= NF; i++) if (tier != "" && $i == tier) col = i; next}
+                          col && $col == "" {n++}
+                          END {print n + 0}' "$corpus/data/MANIFEST.tsv")"
+  if [ "$untiered" -gt 0 ]; then
+    echo "[pre-push] $untiered document(s) in data/MANIFEST.tsv have no $tier tier." >&2
+    echo "[pre-push]   A blank tier is searched at every level, including the narrowest." >&2
+    echo "[pre-push]   Fill the column, or let manifest.py derive it from a curated doc_type." >&2
+    # stdin is the list of refs being pushed, so the answer has to come from the
+    # terminal. A push with no terminal (a script, a CI runner) is told and let through.
+    if [ -r /dev/tty ]; then
+      printf '[pre-push] Push anyway? [Y/n] ' >&2
+      read -r answer < /dev/tty || answer="y"
+      case "$answer" in
+        [nN]*)
+          echo "[pre-push] stopped so the tiers can be filled in." >&2
+          status=1
+          ;;
+      esac
+    else
+      echo "[pre-push]   (no terminal to ask on, continuing)" >&2
+    fi
+  fi
+fi
+
+if [ "$status" -eq 0 ]; then
+  echo "[pre-push] ok"
+else
+  echo "[pre-push] push aborted." >&2
+fi
+exit "$status"

@@ -1,0 +1,223 @@
+# corpus.example: a complete example of a corpus's configuration, and the one the
+# test suite runs against. Copy it into your corpus directory as corpus.toml and
+# edit every value. The corpus it describes is imaginary (public reports and
+# standards in French and English); every table is here so that each one has a
+# commented example.
+
+
+# --------------------------------------------------------------------------
+# Facets: the filters the search page offers
+# --------------------------------------------------------------------------
+[facets]
+# Manifest columns offered as filters, in the order the panel shows them. A field
+# blank across the whole corpus gets no control, so the panel grows as the
+# manifest gets curated. "access" is the software's rights tier.
+fields = ["issuer", "country", "year", "language", "doc_type", "topic", "access"]
+# Fields shown as a two-handle numeric range rather than a dropdown. Year earns
+# it: the corpus spans four decades, and "anything recent" would otherwise mean
+# picking one year out of twenty.
+range = ["year"]
+
+# --------------------------------------------------------------------------
+# Closed vocabularies
+# --------------------------------------------------------------------------
+# A vocabulary is not free text: the manifest check rejects any slug not listed,
+# so a typo in the TSV fails the build instead of quietly creating a facet option
+# that matches exactly one document. Multi-valued cells separate slugs with ";"
+# (the software's VALUE_SEPARATOR). Each vocabulary is also a manifest column of
+# its own name (see [manifest] corpus_columns).
+
+[vocabularies.doc_type]
+# What a document IS. Keep the distinctions a reader filters on: a 300-page full
+# report and the 4-page summary of it answer very different needs.
+values = [
+    "standard",      # a normative text: what to do
+    "guide",         # how to apply a standard
+    "report",        # an evidence or state-of-play report
+    "summary",       # the short form of a longer document
+    "article",       # journal article with no issuing body
+    "sheet",         # one- or two-page practical sheet
+    "tool",          # checklist, form, calculator
+]
+
+[vocabularies.topic]
+# What a document is ABOUT. Multi-valued: a document on two topics carries both
+# slugs, so no curator has to pick one.
+values = [
+    "energy", "transport", "housing", "water", "health", "education",
+    "safety", "accessibility", "procurement", "statistics",
+]
+
+# --------------------------------------------------------------------------
+# Tiers: how authoritative a document is
+# --------------------------------------------------------------------------
+[tiers]
+# The manifest column holding the tier, and the vocabulary column it is derived
+# from where a curator left it blank (by_value below).
+column = "level"
+derived_from = "doc_type"
+# NARROWEST FIRST. The order is the whole point: the UI offers a level and keeps
+# every tier down to it, so choosing "related" keeps "core" too. "no" is a tier,
+# not the absence of one (a curator judged the document outside every level); a
+# BLANK cell is the absence of one and is never hidden by the level control.
+order = ["core", "related", "background", "no"]
+
+[tiers.by_value]
+# Which doc_type puts a document in which tier. Every doc_type appears exactly
+# once (checked at load). A document whose doc_type holds several slugs takes the
+# NARROWEST tier any of them earns.
+standard = "core"
+guide = "related"
+summary = "related"
+report = "background"
+sheet = "background"
+article = "no"
+tool = "no"
+
+# --------------------------------------------------------------------------
+# Renditions: several documents of one family
+# --------------------------------------------------------------------------
+[renditions]
+# One body often publishes the same content at several lengths. Left alone these
+# retrieve against each other.
+#
+# REDUNDANT renditions restate one content at different lengths: two hits from
+# one family that are both redundant are the same answer twice, so the result
+# list shows only the best-ranking one.
+redundant = ["full", "summary", "sheet"]
+# COMPANION renditions share a family but carry DIFFERENT content (an annex of
+# tables, a form). Collapsing these would hide the only document that answers.
+companion = ["annex", "form"]
+# EDITION renditions are successive editions of one text. They disagree, and
+# collapse keeps the best-SCORING sibling where the right winner is the newest,
+# so editions stay out of collapse and rank on their own merits.
+edition = ["edition"]
+
+# --------------------------------------------------------------------------
+# Languages the DOCUMENTS are written in (not the UI's)
+# --------------------------------------------------------------------------
+# Keyed by the manifest's two-letter language code. manifest.py guesses a
+# document's language from `markers` (high-frequency function words: crude, but
+# a few hundred characters decide it, and the lists share no member) and leaves
+# the cell blank on too little text or a tie. `dangling_start`/`dangling_end` are
+# the words a cover title cannot start or end on without being a fragment ("Bon
+# usage des", "de TND Interventions"). `tesseract` is the OCR language pack.
+[languages.fr]
+markers = 'le|la|les|des|une|dans|pour|avec|est|sont|cette|aux|par|sur|ou|que|qui'
+dangling_start = ['de', 'du', 'des', 'd', 'la', 'le', 'les', 'l', 'au', 'aux', 'en', 'pour', 'par', 'sur', 'dans', 'chez', 'avec', 'et', 'ou']
+dangling_end = ['de', 'du', 'des', 'd', 'la', 'le', 'les', 'l', 'un', 'une', 'au', 'aux', 'a', 'en', 'pour', 'par', 'sur', 'dans', 'chez', 'avec', 'et', 'ou']
+tesseract = "fra"
+# Opening words of a bibliography chunk (regex alternatives, matched
+# case-insensitively at its start): build_index.py treats such a chunk as a
+# reference list whatever its citation density.
+reference_headings = ['r[ée]f[ée]rences?', 'bibliograph']
+# The word an extracted figure's description is prefixed with before embedding,
+# per figure kind, so "tableau des doses" finds a table whose description never
+# says it is one. `other` is for a kind not listed. The separator follows the
+# language's typography.
+figure_separator = " : "
+figure_words = { table = "Tableau", flowchart = "Algorithme", chart = "Graphique", diagram = "Schéma", infographic = "Infographie", other = "Figure" }
+
+[languages.en]
+markers = 'the|of|and|for|with|is|are|this|from|that|which|were|been|their'
+dangling_start = ['of', 'for', 'and', 'to', 'in', 'on', 'with']
+dangling_end = ['the', 'of', 'for', 'and', 'to', 'in', 'on', 'with', 'a', 'an']
+tesseract = "eng"
+reference_headings = ['references', 'suggested reading', 'works cited']
+figure_separator = ": "
+figure_words = { table = "Table", flowchart = "Flowchart", chart = "Chart", diagram = "Diagram", infographic = "Infographic", other = "Figure" }
+
+[figures]
+# The language whose figure words a figure gets when its own language is blank or
+# not one of [languages] above.
+fallback_language = "en"
+# Optional: the `figures.py tables` queue, as filename regexes (case-insensitive,
+# the first match wins). `table_first` are described first, `table_last` after
+# everything else (older editions that repeat a newer one).
+# table_first = ["^ISO 50001"]
+# table_last = ["_2015\\.pdf$"]
+
+[ocr]
+# A document whose language was never determined gets every pack, which is less
+# accurate than a single one but better than guessing wrong.
+default = "fra+eng"
+
+# --------------------------------------------------------------------------
+# What manifest.py reads off a cover
+# --------------------------------------------------------------------------
+[manifest]
+# The corpus's own manifest columns, in their TSV order, placed after the
+# software's standard ones (file, title, issuer, country, year, language). Each is
+# a [vocabularies] table or the [tiers] column.
+corpus_columns = ["doc_type", "level", "topic"]
+
+# Ordinary prose, in the documents' languages, naming none of the issuers below.
+# Every word here is one an acronym pattern could match by accident (an English
+# "who" against WHO is the classic). A pattern matching it stops manifest.py at
+# import, so a careless pattern fails loudly instead of mislabelling documents.
+issuer_innocent_prose = """\
+This is a review of who reads the open literature, and of its iso-lines. \
+Cette étude a été menée sans avis de l'agence, et n'a pas été publiée."""
+
+# Lines a cover sets as large as the title that name the COLLECTION rather than
+# the document ("EXECUTIVE SUMMARY", "ANNEXE"). A pure font-size heuristic returns
+# one of these for a large minority of covers, which is worse than no title.
+# Alternatives of one regex, matched case-insensitively against an accent-folded
+# copy of the line; anchor each at the start (^) so a title that merely CONTAINS
+# the word survives.
+title_labels = [
+    '^executive summary$', '^synthese$', '^rapport( final|)$', '^report$',
+    '^(janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre)\b',
+    '^\d', '^page \d', '^annexe?$', '^sommaire$', '^table of contents$',
+]
+
+# Groups of file names allowed to share a title. Empty is the intended resting
+# state: a collision is a mistake worth stopping the run for, because a result
+# list showing one title twice gives the reader no way to tell the two apart.
+known_duplicate_titles = []
+
+# Issuing bodies, recognised on the file name plus the first pages. FIRST match
+# wins, so put specific patterns before generic ones. Patterns are searched
+# case-insensitively; wrap an ACRONYM in (?-i: ) so it matches case-sensitively,
+# or "WHO" matches every English "who". A wrong issuer is worse than a blank.
+issuers = [
+    { name = "ISO", country = "INT", pattern = '(?-i:\bISO\b)|international organization for standardization' },
+    { name = "WHO", country = "INT", pattern = '(?-i:\bWHO\b)|world health organization|organisation mondiale de la santé' },
+    { name = "OECD", country = "INT", pattern = '(?-i:\bOECD\b|\bOCDE\b)|organisation for economic co-operation' },
+    { name = "INSEE", country = "FR", pattern = '(?-i:\bINSEE\b)|institut national de la statistique' },
+    { name = "ONS", country = "UK", pattern = '(?-i:\bONS\b)|office for national statistics' },
+]
+
+# --------------------------------------------------------------------------
+# The site: name, branding, languages (read by scripts/lib/site_config.py)
+# --------------------------------------------------------------------------
+[site]
+# The localStorage prefix: change it and every reader's saved settings are lost.
+id = "example"
+name = "justelesdocs"
+# The header's brand, in two parts: plain, then emphasised.
+brand = ["juste les ", "docs"]
+description = "Recherche sémantique dans un corpus de documents."
+browse_description = "Tous les documents du corpus, avec leurs métadonnées."
+# The first is the default unless default_language says otherwise. Each may have a
+# strings/<code>.json overlay next to this file; the software ships French and
+# English tables, and any other language falls back to the default key by key.
+languages = ["fr", "en"]
+default_language = "fr"
+# Optional: the repository the footer credits (else the software's own), the
+# author it names (else no author line), and a logo.svg relative to this file
+# (else the software's).
+# repo_url = "https://github.com/you/your-fork"
+# author = "Your Name"
+# logo = "logo.svg"
+# Optional: localStorage keys this site used before it had a prefix, old name ->
+# name under the prefix, moved once by src/store.js so no reader loses a setting.
+# legacy_keys = { old_changelog_seen = "changelogSeen" }
+
+# --------------------------------------------------------------------------
+# The offline relevance judge (scripts/judge_rerank.py), never deployed
+# --------------------------------------------------------------------------
+[judge]
+# Optional. The instruction given with every (question, passage) pair: name who asks
+# and what the documents are. Left out, the judge uses a generic one.
+task = "Given a reader's question, judge whether the passage from a public statistics report or standard contains information that answers it. The question and the passage may be in different languages, which does not make the passage irrelevant."
