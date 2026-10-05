@@ -7,10 +7,12 @@ import { migrate, LEGACY_KEYS, PREFIX, load, save } from "../src/store.js";
 /* No site-config.js under Node, so the prefix is the software's default. */
 const P = PREFIX;
 
-/** A Map with Storage's three methods, which is all migrate touches. */
+/** A Map with Storage's methods that migrate touches. */
 function fakeStorage(entries) {
   const map = new Map(Object.entries(entries));
   return {
+    get length() { return map.size; },
+    key: (i) => [...map.keys()][i] ?? null,
     getItem: (k) => (map.has(k) ? map.get(k) : null),
     setItem: (k, v) => map.set(k, String(v)),
     removeItem: (k) => map.delete(k),
@@ -58,6 +60,27 @@ test("a corpus's own legacy keys come from site-config.js and migrate too", asyn
     const s = fakeStorage({ "jlr-lang": "en", demo_seen_version: "1.4.0" });
     store.migrate(s);
     assert.deepEqual(s.dump(), { "demo.lang": "en", "demo.changelogSeen": "1.4.0" });
+  } finally {
+    delete globalThis.__SITE__;
+  }
+});
+
+test("a renamed site moves every key under its previous id, and nothing else", async () => {
+  globalThis.__SITE__ = { id: "newname", previous_ids: ["oldname"] };
+  try {
+    const store = await import("../src/store.js?renamed");
+    const s = fakeStorage({
+      "oldname.theme": "dark", "oldname.lang": "en", "oldname.recent": "off",
+      "newname.lang": "fr", "oldnameish.x": "1", "other": "y",
+    });
+    store.migrate(s);
+    assert.deepEqual(s.dump(), {
+      "newname.theme": "dark", "newname.recent": "off",
+      // Set under the new id already: the newer choice, kept.
+      "newname.lang": "fr",
+      // Not under "oldname." (no dot after it), so not ours to move.
+      "oldnameish.x": "1", "other": "y",
+    });
   } finally {
     delete globalThis.__SITE__;
   }

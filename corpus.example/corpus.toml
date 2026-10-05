@@ -213,6 +213,9 @@ default_language = "fr"
 # Optional: localStorage keys this site used before it had a prefix, old name ->
 # name under the prefix, moved once by src/store.js so no reader loses a setting.
 # legacy_keys = { old_changelog_seen = "changelogSeen" }
+# Optional: the ids this site had before a rename. Every saved setting under
+# "<old id>." moves under the current id once, so renaming loses no reader's settings.
+# previous_ids = ["oldname"]
 
 # --------------------------------------------------------------------------
 # The offline relevance judge (scripts/judge_rerank.py), never deployed
