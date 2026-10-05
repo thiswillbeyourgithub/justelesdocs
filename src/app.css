@@ -111,22 +111,27 @@ header.top {
    is the document's), which reads as a broken layout rather than a wide header.
    The `.spacer` below has `flex: 1` and a zero base, so it eats the free space of
    the first line and the controls drop to a second line under the wordmark rather
-   than crowding it. `row-gap` is smaller than the column gap: two lines a full
-   .75rem apart made the header taller than the search box under it. */
+   than crowding it.
+   Two spacings and no third: controls inside a group (.views, .tools) sit .4rem
+   apart, and the groups 1.25rem apart, so the gap itself says where one group ends.
+   Before, the groups were .5rem inside and .75rem between, close enough to read as
+   uneven spacing rather than as two groups. `row-gap` is smaller than the column
+   gap: two lines a full 1.25rem apart made the header taller than the search box. */
 header.top .wrap {
   display: flex; flex-wrap: wrap; align-items: center;
-  gap: .75rem; row-gap: .4rem; padding: .6rem 1rem;
+  column-gap: 1.25rem; row-gap: .5rem; padding: .6rem 1rem;
 }
 /* The page switch (and, on the search page, the tour) as one group, so that on a phone
    the header can fold into two deliberate lines instead of wrapping wherever the
    widths happened to fall: the wordmark with the language and theme toggles on the
-   first, the pages on the second, the tour pushed to its right end. Before the group
-   existed the fold left "Visite guidée" and "Français" on a line of their own under
-   the page links, which read as a second, unrelated menu. */
-.views { display: flex; align-items: center; gap: .5rem; }
+   first, the pages and the tour on the second, packed left at the same spacing as
+   everything else. Before the group existed the fold left "Visite guidée" and
+   "Français" on a line of their own under the page links, which read as a second,
+   unrelated menu; pushing the tour to the right end instead left it stranded under
+   the settings, as if it were one of them. */
+.views, .tools { display: flex; align-items: center; gap: .4rem; }
 @media (max-width: 40rem) {
   .views { order: 3; flex-basis: 100%; }
-  .views #tour-btn { margin-left: auto; }
 }
 .brand { font-weight: 700; text-decoration: none; color: var(--fg); white-space: nowrap; }
 .brand span { color: var(--accent); }

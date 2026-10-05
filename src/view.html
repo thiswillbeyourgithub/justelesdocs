@@ -37,8 +37,13 @@
       <a class="plain nav" href="./" data-i18n="nav_search"></a>
       <a class="plain nav" href="browse.html" data-i18n="nav_browse"></a>
     </nav>
-    <button class="plain" id="lang-btn"></button>
-    <button class="plain" id="theme-btn" data-i18n-attr="aria-label:theme_toggle"></button>
+    <!-- The reader's settings, as their own group: app.css spaces the controls
+         inside a group tightly and the groups apart, so the bar reads as pages on
+         one side and settings on the other. -->
+    <div class="tools">
+      <button class="plain" id="lang-btn"></button>
+      <button class="plain" id="theme-btn" data-i18n-attr="aria-label:theme_toggle"></button>
+    </div>
   </div>
 </header>
 
