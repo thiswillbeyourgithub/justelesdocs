@@ -681,6 +681,45 @@ els.scroll.addEventListener("touchend", () => {
   els.stage.style.transform = "";
   void zoomTo(zoom * scale, sx, sy);
 });
+/* Swipe left or right with one finger to turn the page, on a phone, where the arrow
+ * buttons sit in the bar away from the thumb.
+ *
+ * Read off touchstart/touchend rather than cancelled during the move, so vertical
+ * scrolling and the browser's own gestures stay native: the page turns only once the
+ * finger has lifted, and only for a gesture that was plainly a sideways flick. That
+ * means mostly horizontal (twice as wide as tall), long enough not to be a wobbly
+ * tap (60 px) and quick enough not to be a slow drag (under 600 ms).
+ *
+ * A zoomed page scrolls sideways under the same finger, and that pan must not also
+ * turn the page. Comparing scrollLeft at both ends tells them apart without
+ * guessing at overflow: if the content moved, it was a pan; at the page's left or
+ * right edge it cannot move, so the same flick then turns the page, which is what a
+ * reader who has panned to the edge and keeps going expects.
+ *
+ * It presses the arrow buttons rather than calling step(), so a refused step on a
+ * restricted document says why, exactly as a tap on the arrow would. */
+let swipe = null;
+els.scroll.addEventListener("touchstart", (event) => {
+  swipe = event.touches.length === 1 ? {
+    x: event.touches[0].clientX, y: event.touches[0].clientY,
+    at: performance.now(), left: els.scroll.scrollLeft,
+  } : null;
+}, { passive: true });
+els.scroll.addEventListener("touchend", (event) => {
+  const from = swipe;
+  swipe = null;
+  // A second finger landing made it a pinch (touchstart cleared `swipe` then), and a
+  // finger still down means the gesture is not over.
+  if (!from || pinch || event.touches.length || !event.changedTouches.length) return;
+  const dx = event.changedTouches[0].clientX - from.x;
+  const dy = event.changedTouches[0].clientY - from.y;
+  if (Math.abs(dx) < 60 || Math.abs(dx) < 2 * Math.abs(dy)) return;
+  if (performance.now() - from.at > 600) return;
+  if (Math.abs(els.scroll.scrollLeft - from.left) > 1) return;
+  if (String(getSelection?.() || "").length) return;
+  // Finger moving left brings the NEXT page in from the right, as in every reader app.
+  (dx < 0 ? els.next : els.prev).click();
+});
 // A trackpad pinch arrives as a wheel event with ctrlKey set, in every desktop
 // browser. Without this it zooms the whole interface, overlay included, which is the
 // same stretched bitmap as a phone pinch. Wheel zoom renders per event, debounced.
