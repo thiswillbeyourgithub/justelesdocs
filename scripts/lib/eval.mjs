@@ -60,12 +60,12 @@ export async function openEvalRun({ encoder = "required" } = {}) {
  * The options the site ranks with when the reader changed nothing.
  *
  * Mirrors the defaults of `createSearchService().answer` (server/service.mjs)
- * and of the page's toggles (src/app.js): bibliographies demoted, recent
- * documents favoured, described figures competing, NO lexical rescore.
+ * and of the page's toggles (src/app.js): no bibliography demotion, no recency
+ * bonus, described figures competing, NO lexical rescore.
  * server/service.mjs is not imported for them because loading it starts nothing
  * but still pulls in the HTTP layer; tests/eval.test.mjs pins the two together.
  */
-export const SITE_DEFAULTS = Object.freeze({ bm25: false, demoteReferences: true, favourRecent: true, figures: "include" });
+export const SITE_DEFAULTS = Object.freeze({ bm25: false, demoteReferences: false, favourRecent: false, figures: "include" });
 
 /**
  * Rank one question as the service would, minus folding, and return the list.

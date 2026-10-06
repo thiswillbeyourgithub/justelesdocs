@@ -505,22 +505,22 @@ if (embedUrl && !(await reachable(embedUrl))) {
   // cannot hide the comparison; the top hit of the direct path is above any
   // floor a deployment would set anyway.
   //
-  // `demoteReferences: true` and `favourRecent: true` because the two sides
-  // default the OTHER WAY from each other: rank() defaults both false
-  // (src/search.js), the service defaults both true (`!== false`, so the browser
-  // opts out rather than in). Without them this compares two different
-  // configurations and only passes when neither the penalty nor the bonus happens
-  // to touch the head of the list, which is how it passed for a year and then
-  // failed the day the encoder changed.
+  // Both sides default the reference penalty and the recency bonus OFF (rank() in
+  // src/search.js, the service in server/service.mjs), and they are named here
+  // anyway: the two once defaulted the other way from each other, and this check
+  // then compared two configurations and passed only while neither the penalty nor
+  // the bonus touched the head of the list. Spelling them out keeps that from
+  // coming back silently if either default moves.
   const { createSearchService } = await import(`${root}/server/service.mjs`);
   const service = createSearchService({ search, index, floor: 0 });
   const question = questions[0];
   const direct = search.foldResults(
     index,
     search.rank(index, await search.embedQuery(question, meta.dims), {},
-                { demoteReferences: true, favourRecent: true }),
+                { demoteReferences: false, favourRecent: false }),
     0)[0];
-  const served = (await service.answer({ q: question, filters: {}, bm25: false })).results[0];
+  const served = (await service.answer({ q: question, filters: {}, bm25: false,
+                                        demote_references: false, favour_recent: false })).results[0];
   check(served && direct && served.doc === direct.doc && served.chunk === direct.chunk,
         "the service answers a known query with the same top hit the direct rank gets",
         `service doc ${served?.doc} chunk ${served?.chunk} vs direct doc ${direct?.doc} chunk ${direct?.chunk}`);
