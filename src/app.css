@@ -109,9 +109,10 @@ header.top {
    and a phone is 360. Without `flex-wrap` the row simply ran off the side of the
    screen, taking the whole page with it (the header is 100% wide, so its overflow
    is the document's), which reads as a broken layout rather than a wide header.
-   The `.spacer` below has `flex: 1` and a zero base, so it eats the free space of
-   the first line and the controls drop to a second line under the wordmark rather
-   than crowding it.
+   The order is wordmark, pages, spacer, settings: the pages sit right after the
+   wordmark and the `.spacer` (`flex: 1`, zero base) pushes the settings to the far
+   end. On a phone the pages take a line of their own (below), so the first line is
+   the wordmark with the settings at the other end.
    Two spacings and no third: controls inside a group (.views, .tools) sit .4rem
    apart, and the groups 1.25rem apart, so the gap itself says where one group ends.
    Before, the groups were .5rem inside and .75rem between, close enough to read as

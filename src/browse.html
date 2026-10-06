@@ -23,7 +23,6 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="./">{{brand}}<span>{{brand_em}}</span></a>
-    <div class="spacer"></div>
     <!-- The two ways into the corpus, both present on every page and always in
          this order, so the pair reads as a switch between two views rather than a
          link whose label changes under you. A reader who knows which document
@@ -35,6 +34,10 @@
       <a class="plain nav" href="./" data-i18n="nav_search"></a>
       <a class="plain nav" href="browse.html" data-i18n="nav_browse" aria-current="page"></a>
     </nav>
+    <!-- The pages sit right after the wordmark and the spacer pushes the reader's
+         settings to the far end, so the bar reads as "where am I" on the left and
+         "how do I want it" on the right. -->
+    <div class="spacer"></div>
     <!-- The reader's settings, as their own group: app.css spaces the controls
          inside a group tightly and the groups apart, so the bar reads as pages on
          one side and settings on the other. -->
