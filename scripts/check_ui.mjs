@@ -693,52 +693,52 @@ if (!searched) {
   await views.waitForTimeout(400);
   check(new URL(views.url()).searchParams.get("bm25") === null,
         "and switching it back off leaves no parameter behind");
-  // The reference demotion is the other way round: ticked from the first paint, so
-  // the interesting direction is switching it OFF. Same single POST, and the URL
-  // only ever carries the unusual state.
-  check(await views.isChecked("#norefs-check"),
-        "bibliographies are set aside from the first list, without anyone asking");
+  // The reference demotion: unticked from the first paint like the lexical blend, so
+  // the interesting direction is switching it ON. Same single POST, and the URL only
+  // ever carries the unusual state.
+  check(!(await views.isChecked("#norefs-check")),
+        "bibliographies compete like any passage until the reader asks otherwise");
   const beforeRefs = searchCalls;
-  await views.uncheck("#norefs-check");
-  await views.waitForTimeout(600);
-  check(searchCalls === beforeRefs + 1, "letting them back in is one request to the service",
-        `${searchCalls - beforeRefs} requests`);
-  check(new URL(views.url()).searchParams.get("norefs") === "0",
-        "and the URL says so, since that is the state a link has to carry");
   await views.check("#norefs-check");
+  await views.waitForTimeout(600);
+  check(searchCalls === beforeRefs + 1, "setting them aside is one request to the service",
+        `${searchCalls - beforeRefs} requests`);
+  check(new URL(views.url()).searchParams.get("norefs") === "1",
+        "and the URL says so, since that is the state a link has to carry");
+  await views.uncheck("#norefs-check");
   await views.waitForTimeout(400);
   check(new URL(views.url()).searchParams.get("norefs") === null,
-        "and setting them aside again leaves no parameter behind");
+        "and letting them back in leaves no parameter behind");
 
   // The recency bonus, the third ranking toggle and the only one that acts on the
-  // DOCUMENT rather than the passage. Same shape as the demotion: ticked from the
-  // first paint, one request to change, and the URL carries only the off state.
+  // DOCUMENT rather than the passage. Same shape as the demotion: unticked from the
+  // first paint, one request to change, and the URL carries only the on state.
   // What is checked beyond the plumbing is that it MOVES something, because a
   // tie-breaker worth 0.05 of a cosine is exactly the kind of feature that can be
   // wired end to end and still change nothing a reader would see.
-  check(await views.isChecked("#recent-check"),
-        "recent documents are favoured from the first list, without anyone asking");
+  check(!(await views.isChecked("#recent-check")),
+        "the year plays no part in the first list, without anyone asking");
   const yearsOf = async () => (await views.locator("#results > li .hit-doc-year, #results > li .hit-meta")
     .allInnerTexts()).join(" ").match(/\b(19|20)\d\d\b/g) || [];
-  const withBonus = await yearsOf();
-  const beforeRecent = searchCalls;
-  await views.uncheck("#recent-check");
-  await views.waitForTimeout(600);
-  check(searchCalls === beforeRecent + 1, "ignoring the year is one request to the service",
-        `${searchCalls - beforeRecent} requests`);
-  check(new URL(views.url()).searchParams.get("recent") === "0",
-        "and the URL says so, since that is the state a link has to carry");
   const withoutBonus = await yearsOf();
+  const beforeRecent = searchCalls;
+  await views.check("#recent-check");
+  await views.waitForTimeout(600);
+  check(searchCalls === beforeRecent + 1, "favouring recent documents is one request to the service",
+        `${searchCalls - beforeRecent} requests`);
+  check(new URL(views.url()).searchParams.get("recent") === "1",
+        "and the URL says so, since that is the state a link has to carry");
+  const withBonus = await yearsOf();
   const mean = (xs) => (xs.length ? xs.map(Number).reduce((a, b) => a + b, 0) / xs.length : 0);
   check(withBonus.length > 0 && withoutBonus.length > 0,
         "the result list prints the years the bonus acts on", `${withBonus.length} years`);
   check(mean(withBonus) >= mean(withoutBonus),
         "and the biased list is not older than the unbiased one",
         `${mean(withBonus).toFixed(1)} vs ${mean(withoutBonus).toFixed(1)}`);
-  await views.check("#recent-check");
+  await views.uncheck("#recent-check");
   await views.waitForTimeout(400);
   check(new URL(views.url()).searchParams.get("recent") === null,
-        "and favouring them again leaves no parameter behind");
+        "and ignoring the year again leaves no parameter behind");
 
   // The negative spelling was what links carried while the default was the other way
   // round, and it still has to mean what it said then.

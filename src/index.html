@@ -164,15 +164,16 @@
       <input type="checkbox" id="rescore-check">
       <span data-i18n="rescore_label"></span>
     </label>
-    <!-- Ticked by default, unlike the one above: a bibliography answers no reader's
-         question, and a reader who wants one can untick this. The score it acts on
+    <!-- Unticked by default, like the one above: the first list is the embedding's
+         own. A bibliography answers no reader's question, so a reader drowning in
+         them ticks this. The score it acts on
          is baked into the index (build_index.py mines the axis from the corpus), so
          ticking it costs no encoder call and adds nothing to the query. -->
     <label class="rescore-toggle" id="norefs-toggle">
       <input type="checkbox" id="norefs-check">
       <span data-i18n="norefs_label"></span>
     </label>
-    <!-- Ticked by default as well, and the only one of the three that acts on a
+    <!-- Unticked by default as well, and the only one of the three that acts on a
          DOCUMENT rather than on a passage: a guideline is meant to be replaced by
          its next edition, so the year is evidence about the answer and the
          embedding cannot see it. Costs nothing per search either, the year being

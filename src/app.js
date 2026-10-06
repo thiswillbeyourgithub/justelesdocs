@@ -133,8 +133,12 @@ if (load(VIEW_KEY) === "documents") view = "documents";
      with, since it rewards a passage for using the words that were typed, which is
      exactly wrong when the question and the answer use two vocabularies. It is worth
      about eight queries of page@1 over the eval set (DESIGN.md).
-   - `norefs`: the reference demotion, ON by default, so only `norefs=0` is written.
-   - `recent`: the recency bonus (src/search.js, RECENCY_BONUS), ON by default too.
+   - `norefs`: the reference demotion, OFF by default, so only `norefs=1` is written.
+     Off for the same reason as `rescore`: the list a reader first sees is the
+     embedding's own, and a penalty that hides a whole kind of passage is opted into.
+   - `recent`: the recency bonus (src/search.js, RECENCY_BONUS), OFF by default too:
+     an old guideline that answers the question should not lose to a newer one that
+     only mentions it.
    - `figures`: described figures competing with the text (the default), left out,
      or alone. One of FIGURE_MODES.
 
@@ -154,8 +158,8 @@ const oneOf = (values) => {
 };
 const PREFS = {
   rescore: { param: "bm25", def: false, ...BOOLEAN, check: "rescore-check", label: "rescore-toggle" },
-  norefs: { param: "norefs", def: true, ...BOOLEAN, check: "norefs-check", label: "norefs-toggle" },
-  recent: { param: "recent", def: true, ...BOOLEAN, check: "recent-check", label: "recent-toggle" },
+  norefs: { param: "norefs", def: false, ...BOOLEAN, check: "norefs-check", label: "norefs-toggle" },
+  recent: { param: "recent", def: false, ...BOOLEAN, check: "recent-check", label: "recent-toggle" },
   figures: { param: "figures", def: FIGURE_MODES[0], ...oneOf(FIGURE_MODES),
              check: "figures-select", label: "figures-toggle" },
 };

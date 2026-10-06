@@ -755,14 +755,14 @@ export async function embedParsedQuery(parsed, dims) {
  * @param {object} filters the page's facet selections, as `rank` takes them.
  * @param {object} [options]
  * @param {boolean} [options.bm25=false] whether to rescore the head of the list lexically.
- * @param {boolean} [options.demoteRefs=true] whether to push bibliographies down the list.
- * @param {boolean} [options.recent=true] whether to favour recent documents.
+ * @param {boolean} [options.demoteRefs=false] whether to push bibliographies down the list.
+ * @param {boolean} [options.recent=false] whether to favour recent documents.
  * @param {string} [options.figures] one of FIGURE_MODES: described figures competing
  *   with the text (the default), left out, or alone.
  * @param {string} [options.base] the endpoint, relative like every other fetch here.
  * @returns {Promise<{results: object[], floor: number, dims: number}>}
  */
-export async function searchRemote(question, filters, { bm25 = false, demoteRefs = true, recent = true,
+export async function searchRemote(question, filters, { bm25 = false, demoteRefs = false, recent = false,
   figures = FIGURE_MODES[0], base = "api/search" } = {}) {
   let response;
   try {
@@ -773,8 +773,8 @@ export async function searchRemote(question, filters, { bm25 = false, demoteRefs
         q: question,
         filters,
         bm25: Boolean(bm25),
-        demote_references: demoteRefs !== false,
-        favour_recent: recent !== false,
+        demote_references: Boolean(demoteRefs),
+        favour_recent: Boolean(recent),
         figures,
       }),
     });

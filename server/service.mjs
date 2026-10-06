@@ -10,8 +10,8 @@
  * Shape of a request and its answer:
  *
  *   POST /api/search  { "q": "...", "filters": {...}, "bm25": false,
- *                        "demote_references": true,
- *                        "favour_recent": true,
+ *                        "demote_references": false,
+ *                        "favour_recent": false,
  *                        "figures": "include" }
  *   -> { "results": [ { "doc", "chunk", "page", "pages", "cosine", "score",
  *                       "lexical", "more", "alternates", "text" } ],
@@ -234,15 +234,10 @@ export function createSearchService({ search, index, floor = 0, depth = 24, text
     if (!body || typeof body !== "object" || typeof body.q !== "string") throw new Error("bad_request");
     const filters = cleanFilters(body.filters, allowedFields);
     const bm25 = body.bm25 === true;
-    // Defaults ON, so a client that predates the flag (or one that simply omits it)
-    // gets the demotion rather than silently losing it. Every other option here
-    // defaults off, and this one is the exception on purpose: it is the behaviour
-    // the page ships with its box ticked, and the two have to agree.
-    const demoteReferences = body.demote_references !== false;
-    // Same rule, same reason: the recency bonus is the page's default too, so an
-    // omitted flag has to mean on. A client that wants the raw embedding order
-    // says so explicitly, with both of these false.
-    const favourRecent = body.favour_recent !== false;
+    // Off unless asked for, like every other option here and like the page, whose
+    // boxes start unticked: an omitted flag means the raw embedding order.
+    const demoteReferences = body.demote_references === true;
+    const favourRecent = body.favour_recent === true;
     // Described figures compete with the text by default, like the page's own
     // default. "exclude" drops them and "only" keeps nothing else; anything but
     // those three is a client that is not the page.

@@ -77,28 +77,28 @@ test("the lexical rescore is applied when asked for", async () => {
   assert.ok(answer.results[0].score >= answer.results[0].cosine);
 });
 
-test("the reference penalty is on unless the request turns it off", async () => {
+test("the reference penalty is off unless the request turns it on", async () => {
   // The tiny index ships no reference row, so one is put on it here: chunk 2, the
   // one the stub encoder answers with, scored a full bibliography. The service is
-  // what decides the default, and the default is on.
+  // what decides the default, and the default is off.
   index.refs = Uint8Array.from([0, 0, 255]);
   index.refScale = 1;
   try {
     const plain = await (await post({ q: "passage two please", demote_references: false })).json();
-    const demoted = await (await post({ q: "passage two please" })).json();
-    const asked = await (await post({ q: "passage two please", demote_references: true })).json();
+    const omitted = await (await post({ q: "passage two please" })).json();
+    const demoted = await (await post({ q: "passage two please", demote_references: true })).json();
     assert.equal(plain.results[0].chunk, 2);
     assert.equal(demoted.results[0].chunk, 2);
     assert.ok(demoted.results[0].cosine < plain.results[0].cosine,
       `${demoted.results[0].cosine} should be under ${plain.results[0].cosine}`);
-    assert.equal(asked.results[0].cosine, demoted.results[0].cosine);
+    assert.equal(omitted.results[0].cosine, plain.results[0].cosine, "omitted means off");
   } finally {
     index.refs = null;
     index.refScale = 0;
   }
 });
 
-test("the recency bonus is on unless the request turns it off", async () => {
+test("the recency bonus is off unless the request turns it on", async () => {
   // One document in the tiny index, so the bonus is a pure offset here and the
   // test is about the FLAG reaching rank(), not about the arithmetic (which
   // tests/search.test.mjs checks on documents of different years). Exaggerated to
@@ -106,11 +106,11 @@ test("the recency bonus is on unless the request turns it off", async () => {
   index.recencyBonus = 0.5;
   try {
     const plain = await (await post({ q: "passage two please", favour_recent: false })).json();
-    const biased = await (await post({ q: "passage two please" })).json();
-    const asked = await (await post({ q: "passage two please", favour_recent: true })).json();
+    const omitted = await (await post({ q: "passage two please" })).json();
+    const biased = await (await post({ q: "passage two please", favour_recent: true })).json();
     assert.ok(biased.results[0].cosine > plain.results[0].cosine,
       `${biased.results[0].cosine} should be over ${plain.results[0].cosine}`);
-    assert.equal(asked.results[0].cosine, biased.results[0].cosine, "omitted means on");
+    assert.equal(omitted.results[0].cosine, plain.results[0].cosine, "omitted means off");
     assert.ok(Math.abs((biased.results[0].cosine - plain.results[0].cosine) - 0.5) < 1e-6);
   } finally {
     delete index.recencyBonus;

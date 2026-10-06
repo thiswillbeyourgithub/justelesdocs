@@ -677,8 +677,8 @@ test("searchRemote sends the question, the filters and the toggle, and returns t
   assert.deepEqual(got, answer);
   assert.equal(seen.url, "api/search");
   assert.deepEqual(seen.body, {
-    q: "une question", filters: { topic: ["housing"] }, bm25: true, demote_references: true,
-    favour_recent: true, figures: "include",
+    q: "une question", filters: { topic: ["housing"] }, bm25: true, demote_references: false,
+    favour_recent: false, figures: "include",
   });
 });
 
@@ -687,15 +687,15 @@ test("searchRemote carries the figures filter", async () => {
   assert.equal(seen.body.figures, "only");
 });
 
-test("searchRemote says so when the reader turned the bibliography penalty off", async () => {
-  const [, seen] = await withResponse(200, {}, () => searchRemote("une question", {}, { demoteRefs: false }));
-  assert.equal(seen.body.demote_references, false);
+test("searchRemote says so when the reader turned the bibliography penalty on", async () => {
+  const [, seen] = await withResponse(200, {}, () => searchRemote("une question", {}, { demoteRefs: true }));
+  assert.equal(seen.body.demote_references, true);
 });
 
-test("searchRemote says so when the reader turned the recency bonus off", async () => {
-  const [, seen] = await withResponse(200, {}, () => searchRemote("une question", {}, { recent: false }));
-  assert.equal(seen.body.favour_recent, false);
-  assert.equal(seen.body.demote_references, true, "the two toggles travel independently");
+test("searchRemote says so when the reader turned the recency bonus on", async () => {
+  const [, seen] = await withResponse(200, {}, () => searchRemote("une question", {}, { recent: true }));
+  assert.equal(seen.body.favour_recent, true);
+  assert.equal(seen.body.demote_references, false, "the two toggles travel independently");
 });
 
 test("searchRemote turns the service's refusals back into the errors the page translates", async () => {
