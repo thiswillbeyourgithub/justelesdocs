@@ -203,17 +203,19 @@ const STRINGS = {
     prev_page: "Page précédente",
     next_page: "Page suivante",
     back_to_results: "Retour aux résultats",
-    // The button says what clicking it will do, like the language button, rather than
-    // naming its current state.
-    // Deux longueurs différentes, volontairement: le bouton est posé sur la page, et
-    // une fois le surlignage masqué c'est le mot le plus court qui gêne le moins la
-    // lecture de ce qu'il recouvrait.
-    hide_highlights: "Cacher le passage",
-    show_highlights: "Montrer",
-    // Le texte du passage sous la page, replié. Le libellé dit « texte » et non
-    // « passage » parce que ce qui s'ouvre est la suite de caractères indexée, pas
-    // une citation mise en forme.
-    chunk_text: "Texte du passage",
+    // The page menu (the kebab over the page, viewer.js). Each item says what clicking
+    // it will do, like the language button, rather than naming the current state.
+    page_menu: "Options de la page",
+    hide_highlights: "Cacher le surlignage",
+    show_highlights: "Montrer le surlignage",
+    text_mode_on: "Lire la page en texte",
+    text_mode_off: "Revenir à l'image de la page",
+    copy_passage: "Copier le texte du passage",
+    copied: "Texte du passage copié.",
+    copy_failed: "La copie a échoué : {error}",
+    fullscreen_on: "Plein écran",
+    fullscreen_off: "Quitter le plein écran",
+    page_no_text: "Cette page n'a pas de texte lisible (page scannée sans reconnaissance de caractères). Revenez à l'image pour la lire.",
     tour_start: "Visite guidée",
     tour_next: "Suivant",
     tour_done: "Terminer",
@@ -439,9 +441,17 @@ const STRINGS = {
     prev_page: "Previous page",
     next_page: "Next page",
     back_to_results: "Back to results",
-    hide_highlights: "Hide the passage",
-    show_highlights: "Show",
-    chunk_text: "Passage text",
+    page_menu: "Page options",
+    hide_highlights: "Hide the highlight",
+    show_highlights: "Show the highlight",
+    text_mode_on: "Read the page as text",
+    text_mode_off: "Back to the page image",
+    copy_passage: "Copy the passage text",
+    copied: "Passage text copied.",
+    copy_failed: "Copying failed: {error}",
+    fullscreen_on: "Full screen",
+    fullscreen_off: "Exit full screen",
+    page_no_text: "This page has no readable text (a scan without character recognition). Go back to the image to read it.",
     tour_start: "Guided tour",
     tour_next: "Next",
     tour_done: "Finish",
@@ -756,7 +766,7 @@ export function pdfMenu(doc, { ids = false } = {}) {
  */
 export function closeMenus(inside = null) {
   for (const menu of document.querySelectorAll(
-    "details.pdf-menu, details.doc-search, details.syntax-help")) {
+    "details.pdf-menu, details.doc-search, details.syntax-help, details.page-menu")) {
     if (!inside || !menu.contains(inside)) menu.open = false;
   }
 }

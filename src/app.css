@@ -383,13 +383,8 @@ section.filters { border: 1px solid var(--line); border-radius: .5rem; margin: .
    as two settings menus for a page whose only real control is the text field.
    Nothing inside is needed to search, so nothing inside competes with the box
    for attention until the reader opens it. */
-/* Grouped with the passage-text disclosure under the viewer's page: two different
-   panels, but one shape, and stating the border and the padding twice is how the two
-   drift into looking almost alike. */
-details.advanced, details.chunk-text { border: 1px solid var(--line); border-radius: .5rem;
-                                       margin: .5rem 0 1rem; }
-details.advanced > summary, details.chunk-text > summary { padding: .5rem .75rem;
-                                                          cursor: pointer; font-size: .9rem; }
+details.advanced { border: 1px solid var(--line); border-radius: .5rem; margin: .5rem 0 1rem; }
+details.advanced > summary { padding: .5rem .75rem; cursor: pointer; font-size: .9rem; }
 /* Closed, the summary is the only thing left on screen that can say the corpus is
    being narrowed, so it says it. Without this a reader who set a filter, collapsed
    the panel and then wondered where two thirds of the answers went would have
@@ -554,15 +549,26 @@ button.hit-text[aria-expanded="true"]:hover { color: var(--fg); }
 .doc-title { font-size: 1.05rem; font-weight: 600; margin: .2rem 0; }
 /* Tabular figures so "9 / 10" does not shift width as the page number changes. */
 #pageno { font-variant-numeric: tabular-nums; }
-/* The passage's own text, opened under the page. `pre-wrap`, not `pre`: the
-   document's line breaks are worth keeping (a dose table is unreadable as one run-on
-   line) but its line LENGTHS are not, since a chunk wrapped at the PDF's own column
-   width would need a horizontal scrollbar on a phone. Monospaced for the same
-   reason the breaks are kept: what is on screen is the indexed text, character for
-   character, and a proportional face quietly presents it as prose. */
-.chunk-text-body { margin: 0; padding: 0 .75rem .75rem; white-space: pre-wrap;
-                   overflow-wrap: break-word; font-family: ui-monospace, monospace;
-                   font-size: .85rem; line-height: 1.5; color: var(--fg); }
+/* The page as text ("read as text" in the page menu, viewer.js). `pre-wrap`, not
+   `pre`: the page's line breaks are worth keeping (a dose table is unreadable as one
+   run-on line) but its line LENGTHS are not, since a line at the PDF's column width
+   would need a horizontal scrollbar on a phone. A readable measure and a generous
+   line height, since the whole point of the mode is reading. The right padding keeps
+   the first lines clear of the kebab sitting over the corner. */
+.page-text { margin: 0 auto; max-width: 46rem; padding: 1rem 3rem 1.25rem 1.25rem;
+             background: var(--card); border: 1px solid var(--line); border-radius: .4rem;
+             white-space: pre-wrap; overflow-wrap: break-word; line-height: 1.6;
+             font-size: 1rem; color: var(--fg); }
+/* The passage, with the same accent as the highlight drawn on the image, so the two
+   views of the page mark it alike. Turned off by the same setting. */
+.page-text mark { background: var(--hit-fill); color: inherit; border-radius: .15rem;
+                  box-shadow: 0 0 0 .1rem var(--hit-fill); }
+.page-text.no-highlight mark { background: none; box-shadow: none; }
+/* Above the expanded rule's `display: flex`, which would otherwise beat [hidden]. */
+.page-frame .page-scroll[hidden], .page-text[hidden] { display: none; }
+.page-text-empty { margin: 0; color: var(--muted); white-space: normal; }
+.page-frame.expanded .page-text { flex: 1; max-width: none; overflow: auto;
+                                  border: 0; border-radius: 0; }
 .plain.bare { text-decoration: none; }
 /* One document, three stacked layers and a scroller, in four boxes:
 
@@ -677,17 +683,30 @@ button.hit-text[aria-expanded="true"]:hover { color: var(--fg); }
 .text-layer ::selection { background: rgb(var(--accent-rgb) / .35); }
 .text-layer br { user-select: none; }
 
-/* The highlight toggle, over the top-right corner of the page. Over it rather
-   than in the bar because it is about what is on the page, and a reader comparing
-   the page with and without the colours should not have to look away from it to
-   flip them. At the top rather than the bottom: the reader arrives at the top of a
-   page, and on a long page the bottom corner is a scroll away from where they are
-   when the colours first get in the way of the words underneath. */
+/* The page menu, a kebab over the top-right corner of the page. Over it rather
+   than in the bar because everything in it is about what is on the page, and a
+   reader comparing the page with and without the colours should not have to look
+   away from it. At the top rather than the bottom: the reader arrives at the top of
+   a page, and on a long page the bottom corner is a scroll away. One small control
+   rather than a row of them, so it covers as few words as it can. */
+.page-menu { position: absolute; right: .6rem; top: .6rem; z-index: 2; }
 .plain.overlay {
-  position: absolute; right: .6rem; top: .6rem; z-index: 2;
+  list-style: none; cursor: pointer; display: block;
   background: var(--card); box-shadow: 0 1px 6px rgb(0 0 0 / .25);
-  font-size: .82rem; padding: .3rem .55rem;
+  border: 1px solid var(--line); border-radius: .4rem; color: var(--fg);
+  font-size: 1.1rem; font-weight: 700; line-height: 1; padding: .35rem .6rem;
 }
+.plain.overlay::-webkit-details-marker { display: none; }
+.page-menu[open] > .plain.overlay { border-color: var(--accent); color: var(--accent); }
+.page-menu-items {
+  position: absolute; right: 0; top: calc(100% + .25rem); display: grid;
+  min-width: max-content; background: var(--card); border: 1px solid var(--line);
+  border-radius: .4rem; box-shadow: 0 2px 10px rgb(0 0 0 / .2); padding: .25rem;
+}
+.page-menu-items button { border: 0; background: none; text-align: left;
+                          padding: .45rem .7rem; border-radius: .3rem; font-size: .9rem; }
+.page-menu-items button:hover { background: rgb(var(--accent-rgb) / .12); color: var(--accent); }
+.page-menu-items button[hidden] { display: none; }
 
 /* "PDF complet (N pages)", opening onto the two things that can be done with it.
    A <details> rather than a <select> or a hand-rolled menu: it is keyboard

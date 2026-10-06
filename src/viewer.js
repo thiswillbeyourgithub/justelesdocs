@@ -23,6 +23,7 @@
 import { load, save } from "./store.js";
 import { t, apply, docRefLinks, pdfMenu, isRestricted, tapNote, figureNote } from "./i18n.js";
 import { setStatus } from "./site.js";
+import { textRuns, toUserSpace, passageOf } from "./pagetext.js";
 import { pdfHref, pageHref, okJson, viewerDocId, localChunkOf, openingPage,
          restrictedWindow } from "./paths.js";
 
@@ -45,9 +46,12 @@ const els = {
   scopeIssuerRow: document.getElementById("scope-issuer-row"),
   scopeIssuerLabel: document.getElementById("scope-issuer-label"),
   back: document.getElementById("back"),
+  pageText: document.getElementById("pagetext"),
+  pageMenu: document.getElementById("page-menu"),
   hlBtn: document.getElementById("hl-btn"),
-  chunkText: document.getElementById("chunk-text"),
-  chunkTextBody: document.getElementById("chunk-text-body"),
+  textBtn: document.getElementById("text-btn"),
+  copyBtn: document.getElementById("copy-btn"),
+  fullBtn: document.getElementById("full-btn"),
 };
 
 const params = new URL(location.href).searchParams;
@@ -230,22 +234,34 @@ const HIGHLIGHTS_KEY = "highlights";
 let highlights = true;
 highlights = load(HIGHLIGHTS_KEY) !== "off";
 
+// Whether the page is shown as text (src/pagetext.js) instead of as an image. Off by
+// default, the image being the document as published; remembered like the highlights,
+// because a reader who needed the text of one page (a faint scan, a phone too narrow
+// for a two-column layout) usually needs it on the next result too.
+const TEXT_MODE_KEY = "textMode";
+let textMode = load(TEXT_MODE_KEY) === "on";
+
 /**
- * Apply the highlight setting to the page.
+ * Bring the page and the page menu in line with the current settings.
  *
- * Only visibility, never a re-render: the boxes are already in the DOM as percentages
- * of the page box, so hiding the layer costs nothing and turning it back on cannot
- * put a box anywhere but where it was.
+ * Only visibility and labels, never a re-render: the boxes are already in the DOM as
+ * percentages of the page box, so hiding the layer costs nothing and turning it back
+ * on cannot put a box anywhere but where it was. The text mode's marks are hidden the
+ * same way, by a class, so one setting governs both views of the page.
  */
-function applyHighlights() {
+function paintPage() {
   els.layer.hidden = !highlights;
-  // Gone entirely while the page fills the screen. It sits ON the page, and expanding
-  // is what a reader does to read the page rather than the interface: the one control
-  // that covers the words is the last thing wanted then, and the click that got here
-  // is one click from undoing itself.
-  els.hlBtn.hidden = expanded;
+  els.pageText.classList.toggle("no-highlight", !highlights);
+  els.scroll.hidden = textMode;
+  els.pageText.hidden = !textMode;
   els.hlBtn.textContent = t(highlights ? "hide_highlights" : "show_highlights");
   els.hlBtn.setAttribute("aria-pressed", String(highlights));
+  els.textBtn.textContent = t(textMode ? "text_mode_off" : "text_mode_on");
+  els.textBtn.setAttribute("aria-pressed", String(textMode));
+  els.copyBtn.textContent = t("copy_passage");
+  // A link naming a document and no passage has nothing to copy.
+  els.copyBtn.hidden = !chunks?.[localChunk];
+  els.fullBtn.textContent = t(expanded ? "fullscreen_off" : "fullscreen_on");
 }
 
 /** Frame the matched passage on `pageNumber`, one frame per block of lines. */
@@ -390,11 +406,117 @@ async function documentFor(pageNumber, token) {
   return pdf;
 }
 
+/**
+ * The text of one page of this document as runs marked in or out of the passage.
+ *
+ * @param {object} pdfPage - A pdf.js page.
+ * @param {number} pageNumber - Its number in the DOCUMENT (a restricted document's
+ *   one-page PDF calls every page 1), which is how the passage's boxes are keyed.
+ * @returns {Promise<Array<{text: string, hit: boolean}>>}
+ */
+async function runsOf(pdfPage, pageNumber) {
+  const content = await pdfPage.getTextContent();
+  const boxes = chunks?.[localChunk]?.boxes?.[String(pageNumber)];
+  return textRuns(content.items, toUserSpace(boxes, pdfPage.getViewport({ scale: 1 }).viewBox));
+}
+
+/**
+ * Show the page as text, the passage marked, in place of the image.
+ *
+ * The marked stretch is scrolled to the middle of the screen, so a reader switching to
+ * text on a dense page lands on the passage rather than on the running header.
+ *
+ * @param {object} pdfPage - The pdf.js page to read.
+ * @param {number} token - The render's `renderToken`.
+ * @returns {Promise<void>}
+ */
+async function renderPageText(pdfPage, token) {
+  let runs = [];
+  try {
+    runs = await runsOf(pdfPage, page);
+  } catch { /* no text layer at all: said below, like an empty one */ }
+  if (token !== renderToken) return;
+  if (!runs.some((r) => r.text.trim())) {
+    const empty = document.createElement("p");
+    empty.className = "page-text-empty";
+    empty.textContent = t("page_no_text");
+    els.pageText.replaceChildren(empty);
+    return;
+  }
+  els.pageText.replaceChildren(...runs.map((r) => {
+    if (!r.hit) return document.createTextNode(r.text);
+    const mark = document.createElement("mark");
+    mark.textContent = r.text;
+    return mark;
+  }));
+  els.pageText.querySelector("mark")?.scrollIntoView({ block: "center" });
+}
+
+/**
+ * The passage's text, for the clipboard.
+ *
+ * The indexed text when the document publishes it: the characters the ranker scored,
+ * line breaks and table layout included, and for a figure the model's description
+ * with the note saying so. A restricted document publishes no text (stage.py), so its
+ * passage is read off its pages instead, page by page across every page the passage
+ * covers, all of which are inside the reading window.
+ *
+ * @returns {Promise<string>}
+ */
+async function passageText() {
+  const match = chunks?.[localChunk];
+  if (!match) return "";
+  if (match.text) return match.figure ? `[${figureNote(match.figure)}] ${match.text}` : match.text;
+  const parts = [];
+  for (const n of match.pages || []) {
+    // The page on screen is already loaded; any other is cut by the page service
+    // into a document of its own, destroyed once read so `pdf` is left untouched.
+    const held = pdf && loadedPage === n;
+    const holder = held ? pdf : await pdfjs.getDocument({
+      url: pageHref(docId, n), standardFontDataUrl: "vendor/pdfjs/standard_fonts/",
+    }).promise;
+    try {
+      parts.push(passageOf(await runsOf(await holder.getPage(1), n)));
+    } finally {
+      if (!held) holder.destroy();
+    }
+  }
+  return parts.filter(Boolean).join("\n\n");
+}
+
+/** The page number and the arrows' state, once a page is on screen. */
+function paintPager() {
+  els.pageno.textContent = `${page} / ${pageCount}`;
+  const window_ = pageWindow();
+  // Greyed either way, but dead in two different senses. At the ends of a document
+  // there is nothing to explain, so the arrow is plainly `disabled`. At the edge of a
+  // restricted window there IS something to explain, and a `disabled` button cannot
+  // be clicked, so it stays in the tab order with `aria-disabled` and answers the tap
+  // with the reason (`tapNote`, below). The click handlers clamp to the window in
+  // both cases, so an arrow that looks dead never turns a page.
+  const why = isRestricted(doc) ? t("restricted_pages") : "";
+  for (const [button, stop] of [[els.prev, page <= window_.first],
+                                [els.next, page >= window_.last]]) {
+    button.disabled = stop && !why;
+    button.setAttribute("aria-disabled", String(stop));
+    // The tooltip is on the buttons themselves, since that is where the reader's
+    // pointer already is when a greyed arrow surprises them.
+    button.title = stop ? why : "";
+  }
+  setStatus("");
+}
+
 async function render() {
   const token = ++renderToken;
   const holder = await documentFor(page, token);
   if (!holder || token !== renderToken) return;   // a newer render started while fetching
   const pdfPage = await holder.getPage(isRestricted(doc) ? 1 : page);
+  if (textMode) {
+    renderTask?.cancel();
+    await renderPageText(pdfPage, token);
+    if (token === renderToken) paintPager();
+    return;
+  }
   // The scroller is what has the room. Capped at 1000 CSS px inline, so a wide window
   // does not render an A4 page at poster size next to a 700px column of interface;
   // when expanded, the page's width times the reader's own zoom (see `zoom`).
@@ -431,24 +553,7 @@ async function render() {
   drawBoxes(page, viewport);
   await renderText(pdfPage, cssViewport, token);
   if (token !== renderToken) return;
-  els.pageno.textContent = `${page} / ${pageCount}`;
-  const window_ = pageWindow();
-  // Greyed either way, but dead in two different senses. At the ends of a document
-  // there is nothing to explain, so the arrow is plainly `disabled`. At the edge of a
-  // restricted window there IS something to explain, and a `disabled` button cannot
-  // be clicked, so it stays in the tab order with `aria-disabled` and answers the tap
-  // with the reason (`tapNote`, below). The click handlers clamp to the window in
-  // both cases, so an arrow that looks dead never turns a page.
-  const why = isRestricted(doc) ? t("restricted_pages") : "";
-  for (const [button, stop] of [[els.prev, page <= window_.first],
-                                [els.next, page >= window_.last]]) {
-    button.disabled = stop && !why;
-    button.setAttribute("aria-disabled", String(stop));
-    // The tooltip is on the buttons themselves, since that is where the reader's
-    // pointer already is when a greyed arrow surprises them.
-    button.title = stop ? why : "";
-  }
-  setStatus("");
+  paintPager();
 }
 
 /**
@@ -485,9 +590,9 @@ async function setExpanded(next, fx = 0.5, fy = 0.5) {
   expanded = next;
   zoom = 1;
   els.frame.classList.toggle("expanded", expanded);
-  // Before the await, so the control disappears with the click that expanded the page
-  // rather than a re-render later.
-  applyHighlights();
+  // Before the await, so the menu's label changes with the click rather than a
+  // re-render later.
+  paintPage();
   // Requested, never depended on. Wrapped because a browser that refuses (no user
   // gesture, no permission, no element fullscreen at all) rejects rather than
   // returning false, and the overlay is already doing the job either way.
@@ -536,7 +641,7 @@ function refreshChrome() {
     els.scopeIssuerRow.hidden = !doc.issuer;
     if (doc.issuer) els.scopeIssuerLabel.textContent = t("scope_issuer", { issuer: doc.issuer });
   }
-  applyHighlights();
+  paintPage();
 }
 
 (async function boot() {
@@ -567,18 +672,6 @@ function refreshChrome() {
 
     localChunk = localChunkOf(chunkRow, doc.chunk_offset, chunks.length);
     const match = chunks[localChunk];
-    // The passage's own text under the page, for a page that renders too faintly or
-    // too small to read. Set once: it is the document's text, not a translation, so
-    // a language change has nothing to redo here. Restricted documents ship their
-    // geometry without their text (stage.py), so `match.text` is undefined there and
-    // the disclosure stays hidden rather than opening onto nothing.
-    els.chunkText.hidden = !match?.text;
-    els.chunkTextBody.textContent = match?.text || "";
-    // Except a figure's: its text is a model's description (scripts/figures.py), and
-    // the reader is told so before reading it, in the language the page opened in.
-    if (match?.text && match.figure) {
-      els.chunkTextBody.textContent = `[${figureNote(match.figure)}] ${match.text}`;
-    }
     // The page the result list printed, carried in the link, so the list and the
     // viewer agree by construction (paths.js: openingPage).
     page = openingPage(params.get("p"), match, Math.max(1, Number(doc.pages) || 1));
@@ -700,13 +793,15 @@ els.scroll.addEventListener("touchend", () => {
  * It presses the arrow buttons rather than calling step(), so a refused step on a
  * restricted document says why, exactly as a tap on the arrow would. */
 let swipe = null;
-els.scroll.addEventListener("touchstart", (event) => {
+// On the frame rather than the scroller, so the swipe also turns the page in text
+// mode, where the scroller is hidden and the text sits beside it in the frame.
+els.frame.addEventListener("touchstart", (event) => {
   swipe = event.touches.length === 1 ? {
     x: event.touches[0].clientX, y: event.touches[0].clientY,
     at: performance.now(), left: els.scroll.scrollLeft,
   } : null;
 }, { passive: true });
-els.scroll.addEventListener("touchend", (event) => {
+els.frame.addEventListener("touchend", (event) => {
   const from = swipe;
   swipe = null;
   // A second finger landing made it a pinch (touchstart cleared `swipe` then), and a
@@ -739,10 +834,33 @@ els.scroll.addEventListener("wheel", (event) => {
   }, 60);
 }, { passive: false });
 
+// Every item closes the menu: each one changes the page the menu sits on, and the
+// reader wants to see that change rather than the menu over it.
 els.hlBtn.addEventListener("click", () => {
+  els.pageMenu.open = false;
   highlights = !highlights;
   save(HIGHLIGHTS_KEY, highlights ? "on" : "off");
-  applyHighlights();
+  paintPage();
+});
+els.textBtn.addEventListener("click", () => {
+  els.pageMenu.open = false;
+  textMode = !textMode;
+  save(TEXT_MODE_KEY, textMode ? "on" : "off");
+  paintPage();
+  if (pdf) void safeRender();
+});
+els.fullBtn.addEventListener("click", () => {
+  els.pageMenu.open = false;
+  void setExpanded(!expanded);
+});
+els.copyBtn.addEventListener("click", async () => {
+  els.pageMenu.open = false;
+  try {
+    await navigator.clipboard.writeText(await passageText());
+    setStatus(t("copied"));
+  } catch (error) {
+    setStatus(t("copy_failed", { error: error.message || error }), true);
+  }
 });
 /* Whether the last click on an arrow turned a page or was refused, which is what the
    note under that arrow is about. Read rather than recomputed, because the note's

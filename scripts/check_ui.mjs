@@ -1223,11 +1223,22 @@ if (target) {
           pdfTap.slice(0, 60));
     const meta_ = await locked.locator("#doc-meta").innerText();
     check(/page|droits|legal/i.test(meta_), "and the metadata line says why", meta_.slice(0, 80));
-    // And no passage text either. stage.py publishes these documents' geometry without
-    // their `text`, and check_served.py refuses a word of one under the web root, so
-    // the disclosure has nothing to open onto and must be absent rather than empty.
-    check(!(await locked.locator("#chunk-text").isVisible()),
-          "and the passage's text is not offered, because it is not published");
+    // The text mode still works here: stage.py publishes no `text` for these
+    // documents, so the page's text comes from the page itself (src/pagetext.js),
+    // read through the page service, and the passage is marked from its boxes.
+    // Reloaded first: the walk above left the reader two pages from the passage.
+    await locked.reload({ waitUntil: "load" });
+    await locked.waitForFunction(() => document.querySelector("#pageno")?.textContent?.includes("/"),
+                                 null, { timeout: 30000 }).catch(() => null);
+    await locked.click("#page-menu > summary");
+    await locked.click("#text-btn");
+    await locked.waitForFunction(() => document.querySelector("#pagetext mark"), null,
+                                 { timeout: 20000 }).catch(() => null);
+    const lockedMark = (await locked.locator("#pagetext mark").first().innerText().catch(() => "")).trim();
+    check(lockedMark.length > 0, "and its page reads as text with the passage marked, off the page itself",
+          lockedMark.slice(0, 60));
+    await locked.click("#page-menu > summary");
+    await locked.click("#text-btn");   // the setting is remembered: put it back for the rest
     await locked.close();
   }
 
@@ -1236,6 +1247,8 @@ if (target) {
   // boxes off is reading the page as published, and having them return on the next
   // hit would be the annoying half of a toggle.
   check(await viewer.locator("#layer").isVisible(), "highlights are on by default");
+  // Behind the kebab over the page: the menu opens, the item acts and closes it.
+  await viewer.click("#page-menu > summary");
   const onLabel = (await viewer.locator("#hl-btn").innerText()).trim();
   await viewer.click("#hl-btn");
   await viewer.waitForTimeout(100);
@@ -1336,7 +1349,7 @@ if (target) {
   const order = await viewer.evaluate(() => {
     const box = (s) => document.querySelector(s)?.getBoundingClientRect() || null;
     const frame = box(".page-frame"), pager = box(".pager");
-    const btn = box("#hl-btn");
+    const btn = box("#page-menu > summary");
     return { pagerBelow: pager && frame ? pager.top >= frame.bottom - 1 : false,
              // Top right, not just "somewhere over the page": a long page puts its
              // bottom corner a scroll away from the reader who wants the colours off.
@@ -1346,7 +1359,7 @@ if (target) {
                : false };
   });
   check(order.pagerBelow, "the pager sits under the page");
-  check(order.overlayTopRight, "while the highlight toggle sits in the page's top right corner");
+  check(order.overlayTopRight, "while the page menu sits in the page's top right corner");
   if (SHOTS) await viewer.screenshot({ path: `${SHOTS}/viewer.png` });
 
   // Percentages, so a narrower window must not move a highlight off its words.
@@ -1379,10 +1392,9 @@ if (target) {
         "clicking the page fills the screen with it");
   check(full > inline + 10, "and the page is re-rendered to the room that gives it",
         `${Math.round(inline)} -> ${Math.round(full)}`);
-  // The one control that sits ON the page goes away while the page fills the screen.
-  // A reader expands to read the page, and that button covers the words it is about.
-  check(await viewer.locator("#hl-btn").isVisible() === false,
-        "and the highlight toggle, which sits on the page, is gone while it does");
+  // The page menu stays, since it is also the way out of full screen and into text.
+  check(await viewer.locator("#page-menu > summary").isVisible(),
+        "and the page menu stays reachable while it does");
   // A trackpad pinch (ctrl+wheel) on the expanded page is the page's zoom, not the
   // browser's: the page must come back RE-RENDERED larger, bitmap and all. The
   // browser's own pinch only stretched the bitmap, which is what readers called
@@ -1414,30 +1426,66 @@ if (target) {
   check(await viewer.locator("#page-frame.expanded").count() === 0 &&
         Math.abs((await widthOfPage()) - inline) < 2,
         "and clicking again puts it back where it was");
-  check(await viewer.locator("#hl-btn").isVisible() === true,
-        "and comes back with it");
+  // The menu's own full-screen item does the same, and says which way it goes.
+  await viewer.click("#page-menu > summary");
+  await viewer.click("#full-btn");
+  await viewer.waitForTimeout(1500);
+  check(await viewer.locator("#page-frame.expanded").count() === 1, "the menu's full screen item expands it too");
+  await viewer.click("#page-menu > summary");
+  check(/quitter|exit/i.test(await viewer.locator("#full-btn").innerText()), "and then offers the way back");
+  await viewer.click("#full-btn");
+  await viewer.waitForTimeout(1500);
+  check(await viewer.locator("#page-frame.expanded").count() === 0, "which works");
 
-  /* The passage's own text under the page, for the page that renders too faintly to
-     read. Checked in a browser rather than by reading the markup for one reason: what
-     it is worth depends on it being the SAME characters the ranker scored, and the
-     viewer reaches them through the index's per-document JSON, `chunk_offset` and all.
-     An off-by-one in that arithmetic would show a neighbouring passage, which reads
-     perfectly well and is the wrong text. */
-  check(await viewer.locator("#chunk-text").isVisible(),
-        "the passage's own text is offered under the page");
-  check(!(await viewer.locator("#chunk-text-body").isVisible()),
-        "folded away, since the page is the answer and this is the fallback");
-  await viewer.click("#chunk-text > summary");
-  await viewer.waitForTimeout(100);
-  const shown = (await viewer.locator("#chunk-text-body").innerText()).trim();
-  check(shown === target.text.trim(), "and opening it shows that passage, character for character",
-        `${shown.length} characters against ${target.text.trim().length}`);
-  // `pre-wrap`, not `pre` and not the default: the document's own line breaks are what
-  // makes a dose table readable here, and `innerText` collapses them under any other
-  // value, so a regression would be silent in the string above.
-  check(await viewer.locator("#chunk-text-body").evaluate(
-          (el) => getComputedStyle(el).whiteSpace === "pre-wrap"),
-        "keeping the document's line breaks");
+  /* Copy: what lands on the clipboard must be the SAME characters the ranker scored.
+     The viewer reaches them through the index's per-document JSON, `chunk_offset` and
+     all, and an off-by-one in that arithmetic would copy a neighbouring passage, which
+     reads perfectly well and is the wrong text. The clipboard is stubbed, since a
+     headless browser's permission prompt is not what is being tested. */
+  await viewer.evaluate(() => {
+    window.__copied = null;
+    Object.defineProperty(navigator, "clipboard", { configurable: true,
+      value: { writeText: async (text) => { window.__copied = text; } } });
+  });
+  await viewer.click("#page-menu > summary");
+  await viewer.click("#copy-btn");
+  await viewer.waitForTimeout(300);
+  const copied = (await viewer.evaluate(() => window.__copied)) || "";
+  const expected = target.figure ? null : target.text.trim();
+  check(expected === null ? copied.length > 0 : copied.trim() === expected,
+        "copying the passage puts its indexed text on the clipboard, character for character",
+        `${copied.length} characters against ${target.text.trim().length}`);
+
+  /* Text mode: the whole page as text, the passage marked, in place of the image. */
+  await viewer.click("#page-menu > summary");
+  await viewer.click("#text-btn");
+  await viewer.waitForFunction(() => !document.querySelector("#pagetext")?.hidden
+                                     && document.querySelector("#pagetext").textContent.length > 0,
+                               null, { timeout: 20000 }).catch(() => null);
+  const textView = await viewer.evaluate(() => {
+    const el = document.querySelector("#pagetext");
+    return { image: !document.querySelector("#scroll").hidden, length: el.textContent.length,
+             marked: [...el.querySelectorAll("mark")].map((m) => m.textContent).join(" "),
+             wrap: getComputedStyle(el).whiteSpace };
+  });
+  check(!textView.image && textView.length > 0, "text mode shows the page as text instead of the image",
+        `${textView.length} characters`);
+  // The marked words are the passage's own: most of their words appear in its indexed text.
+  const words = (str) => str.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || [];
+  const wanted = new Set(words(target.text));
+  const markedWords = words(textView.marked);
+  const overlap = markedWords.filter((w) => wanted.has(w)).length / Math.max(1, markedWords.length);
+  check(target.figure || (markedWords.length > 0 && overlap > 0.6),
+        "with the passage marked, and the marks on the passage's own words",
+        `${markedWords.length} marked words, ${Math.round(overlap * 100)}% in the passage`);
+  check(textView.wrap === "pre-wrap", "keeping the page's line breaks");
+  await viewer.reload({ waitUntil: "load" });
+  await viewer.waitForTimeout(1500);
+  check(!(await viewer.locator("#pagetext").isHidden()), "and the choice survives a reload");
+  await viewer.click("#page-menu > summary");
+  await viewer.click("#text-btn");
+  await viewer.waitForTimeout(1500);
+  check(await viewer.locator("#canvas").isVisible(), "and switching back shows the image again");
   check(viewerErrors.length === 0, "no uncaught error in the viewer", viewerErrors.slice(0, 3).join(" | "));
 
   // Asking the same corpus a second question, from inside a document. The scope is

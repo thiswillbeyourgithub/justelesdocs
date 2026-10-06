@@ -91,7 +91,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, calm() ? 0 : m
  * disclosure), and without this the panel opened for step two was still hanging over
  * the page three steps later.
  *
- * Every <details> rather than closeMenus()'s three kinds (i18n.js): that helper runs
+ * Every <details> rather than closeMenus()'s four kinds (i18n.js): that helper runs
  * on every click on the page and must NOT fold "Recherche avancée" away, whereas the
  * tour wants exactly that. The facet popups are not <details> (app.js, facetPopup),
  * so app.js shuts them, through the hook it hands the tour.

@@ -104,9 +104,26 @@
         <div class="text-layer" id="textlayer"></div>
       </div>
     </div>
-    <!-- No data-i18n: viewer.js writes the label, which names the action the current
-         state makes available ("hide" while they are showing). -->
-    <button class="plain overlay" id="hl-btn" aria-pressed="true"></button>
+    <!-- The page as text: pdf.js's own text of the page, with the passage marked
+         (src/pagetext.js). Shown INSTEAD of the image in "read as text" mode, for a
+         page too faint or too small to read and for copying more than a selection
+         over the canvas allows. -->
+    <div class="page-text" id="pagetext" hidden></div>
+    <!-- Everything that acts on the page itself, behind one kebab over its top-right
+         corner: one small control on the page rather than a row of them covering
+         its words. A <details>, like the PDF menu in the bar, so it opens without
+         script, closes on Escape and on a click elsewhere (i18n.js: closeMenus).
+         The items have no data-i18n: viewer.js writes each label, which names the
+         action the current state makes available ("hide" while it is showing). -->
+    <details class="page-menu" id="page-menu">
+      <summary class="plain overlay" data-i18n-attr="aria-label:page_menu,title:page_menu">⋮</summary>
+      <div class="page-menu-items">
+        <button class="plain" id="hl-btn" aria-pressed="true"></button>
+        <button class="plain" id="text-btn" aria-pressed="false"></button>
+        <button class="plain" id="copy-btn"></button>
+        <button class="plain" id="full-btn"></button>
+      </div>
+    </details>
   </div>
   <!-- The pager sits under the page, where the reader's eyes already are when they
        reach the end of it, and where "next page" means what it says. Above the page
@@ -118,27 +135,6 @@
     <span id="pageno"></span>
     <button class="plain" id="next" data-i18n="next_page"></button>
   </p>
-  <!-- The passage as the index holds it, collapsed. A scanned page, a two-column
-       layout at a small zoom or a faint fax is sometimes unreadable on screen even
-       though its text layer is fine, and the highlight then says where the passage
-       is without saying what it says. This is the fallback: the very same characters
-       the ranker scored.
-
-       Under the pager rather than between the page and it, because the pager belongs
-       against the page (view.html, above) and a disclosure opening between the two
-       would push "page suivante" down the screen by the length of a passage.
-
-       Absent, not empty, on the 53 restricted documents: stage.py strips `text` from
-       their published JSON and check_served.py refuses a word of one under the web
-       root, so there is nothing here to show and a summary promising otherwise would
-       be worse than no summary. viewer.js unhides it when the chunk carries text. -->
-  <details class="chunk-text" id="chunk-text" hidden>
-    <summary data-i18n="chunk_text"></summary>
-    <!-- The document's own line breaks are in the indexed text, and `white-space:
-         pre-wrap` is what keeps them: a table of doses read as one run-on line is
-         exactly the case this disclosure exists for. -->
-    <p class="chunk-text-body" id="chunk-text-body"></p>
-  </details>
 </main>
 
 <!-- Same footer as the search page, filled by site.js. -->
