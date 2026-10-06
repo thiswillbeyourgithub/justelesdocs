@@ -250,6 +250,7 @@ class Document:
     chunk_offset: int
     chunk_count: int
     figure_count: int = 0
+    figure_kinds: str = ""
 
 
 def trailing_figures(chunks: list[dict], name: str) -> int:
@@ -274,6 +275,27 @@ def trailing_figures(chunks: list[dict], name: str) -> int:
             f"{name}: a figure chunk before a text chunk. The figures filter in "
             "src/search.js reads them as the tail of the document's range.")
     return count
+
+
+def figure_kinds(chunks: list[dict]) -> str:
+    """One letter per figure chunk, in order: "t" for a table, "i" for any other image.
+
+    The figures filter in src/search.js reads it to search tables or images alone.
+    The figure chunks are the tail of the range (`trailing_figures`), so letter k
+    belongs to the k-th row after the last text chunk.
+
+    Parameters
+    ----------
+    chunks
+        One document's chunks, in index order.
+
+    Returns
+    -------
+    str
+        For example "ttit" for four figures of which the third is a diagram.
+    """
+    return "".join("t" if c["figure"].get("kind") == "table" else "i"
+                   for c in chunks if c.get("figure"))
 
 
 def read_manifest(path: Path) -> dict[str, dict[str, str]]:
@@ -1089,6 +1111,7 @@ def load_document(doc_id: int, path: Path, *, inputs: Inputs,
         chunk_offset=corpus.n_chunks,
         chunk_count=len(doc_chunks),
         figure_count=trailing_figures(doc_chunks, name),
+        figure_kinds=figure_kinds(doc_chunks),
     ))
 
     for chunk in doc_chunks:
@@ -1431,7 +1454,8 @@ def main(chunks: Path, vectors: Path, manifest: Path, out: Path, dims: int,
         "documents": [
             {"id": i, "file": d.file, "chunk_offset": d.chunk_offset,
              "chunk_count": d.chunk_count,
-             **({"figure_count": d.figure_count} if d.figure_count else {}), **d.meta}
+             **({"figure_count": d.figure_count, "figure_kinds": d.figure_kinds}
+                if d.figure_count else {}), **d.meta}
             for i, d in enumerate(corpus.documents)
         ],
     }, ensure_ascii=False, separators=(",", ":")))

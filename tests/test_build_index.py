@@ -248,6 +248,8 @@ def test_the_guideline_column_is_gated_like_the_other_vocabularies(build_index):
 
 def test_figures_are_counted_from_the_tail_of_a_document(build_index):
     """The figures filter in src/search.js cuts the range at `figure_count`."""
+    assert build_index.figure_kinds([{"text": "a"}, {"figure": {"kind": "table"}},
+                                     {"figure": {"kind": "diagram"}}]) == "ti"
     chunks = [{"text": "a"}, {"text": "b"}, {"text": "c", "figure": {"n": 1}},
               {"text": "d", "figure": {"n": 2}}]
     assert build_index.trailing_figures(chunks, "x.pdf") == 2

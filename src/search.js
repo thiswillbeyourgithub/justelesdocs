@@ -1087,8 +1087,30 @@ export function recencyBonuses(docs, { bonus, halfLife }) {
   return out;
 }
 
-/** What the figures filter accepts; the first is what an omitted one means. */
-export const FIGURE_MODES = ["include", "exclude", "only"];
+/**
+ * What the figures filter accepts; the first is what an omitted one means.
+ *
+ * "include": figures compete with the text. "exclude": text only. "only": every
+ * described figure and nothing else. "tables" and "images": the figures of one kind,
+ * tables being the figures the describing model classed `table` and images every
+ * other kind (diagram, chart, flowchart, photo...).
+ */
+export const FIGURE_MODES = ["include", "exclude", "only", "tables", "images"];
+
+/**
+ * The figure kind letter a mode keeps, or null for a mode that does not look at kinds.
+ *
+ * build_index.py writes one letter per trailing figure row in `figure_kinds`: "t"
+ * for a table, "i" for any other image. A document from an index built before that
+ * field existed has no letters, so a kind mode finds nothing in it rather than
+ * guessing.
+ *
+ * @param {string} figures - One of FIGURE_MODES.
+ * @returns {string|null}
+ */
+export function figureKind(figures) {
+  return figures === "tables" ? "t" : figures === "images" ? "i" : null;
+}
 
 /**
  * The rows of one document that the figures filter lets `rank()` score.
@@ -1101,7 +1123,7 @@ export function figureRange(doc, figures) {
   const end = doc.chunk_offset + doc.chunk_count;
   const firstFigure = end - (doc.figure_count || 0);
   if (figures === "exclude") return [doc.chunk_offset, firstFigure];
-  if (figures === "only") return [firstFigure, end];
+  if (figures === "only" || figureKind(figures)) return [firstFigure, end];
   return [doc.chunk_offset, end];
 }
 
@@ -1168,12 +1190,16 @@ export function rank(index, query, filters, { demoteReferences = false, favourRe
     // range (scripts/build_index.py refuses anything else), so the figures
     // filter is a cut in the range rather than a test per chunk.
     const [start, end] = figureRange(doc, figures);
+    // The two kind modes narrow that tail further, one letter per row.
+    const kind = figureKind(figures);
+    const kinds = doc.figure_kinds || "";
     // Constant for every chunk of this document, and added inside the loop below
     // rather than to the floor, because the floor is one number shared by all
     // documents and this is not.
     const ageBonus = recency ? recency[docId] : 0;
 
     for (let c = start; c < end; c++) {
+      if (kind && kinds[c - start] !== kind) continue;
       let dot = 0;
       const base = c * stride;
       // Plain loops on purpose: no allocation, and it is a few milliseconds for

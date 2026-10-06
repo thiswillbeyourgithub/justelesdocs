@@ -571,6 +571,22 @@ test("the figures filter keeps, drops or isolates a document's trailing figure c
   assert.deepEqual(chunks("only"), [2]);
 });
 
+test("the tables and images modes keep only the trailing figures of their kind", () => {
+  // Chunk 2 is the one figure; its letter in figure_kinds says what kind it is.
+  const index = tinyIndex();
+  index.docs[0].figure_count = 1;
+  const chunks = (figures) => rank(index, Int8Array.from([127, 127, 0, 0]), {}, { figures })
+    .map((h) => h.chunk).sort();
+  index.docs[0].figure_kinds = "t";
+  assert.deepEqual(chunks("tables"), [2]);
+  assert.deepEqual(chunks("images"), []);
+  index.docs[0].figure_kinds = "i";
+  assert.deepEqual(chunks("tables"), []);
+  assert.deepEqual(chunks("images"), [2]);
+  delete index.docs[0].figure_kinds;
+  assert.deepEqual(chunks("tables"), [], "an index without kinds offers no tables rather than guessing");
+});
+
 test("a document without figures has nothing to offer the figures-only filter", () => {
   const doc = { chunk_offset: 10, chunk_count: 5 };
   assert.deepEqual(figureRange(doc, "include"), [10, 15]);

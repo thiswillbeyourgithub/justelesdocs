@@ -182,16 +182,19 @@
       <input type="checkbox" id="recent-check">
       <span data-i18n="recent_label"></span>
     </label>
-    <!-- Not a box but three choices, because "figures only" is a question of its
-         own (the decision tree, the dose chart) and not the absence of text.
+    <!-- Not a box but five choices, because "figures only" is a question of its
+         own (the decision tree, the dose chart) and not the absence of text, and
+         "a table" and "a diagram" are two different questions again.
          Included by default: a described figure competes with the text on its
          own score, like any passage. -->
     <label class="rescore-toggle" id="figures-toggle">
       <span data-i18n="figures_label"></span>
       <select id="figures-select">
         <option value="include" data-i18n="figures_include"></option>
-        <option value="exclude" data-i18n="figures_exclude"></option>
         <option value="only" data-i18n="figures_only"></option>
+        <option value="tables" data-i18n="figures_tables"></option>
+        <option value="images" data-i18n="figures_images"></option>
+        <option value="exclude" data-i18n="figures_exclude"></option>
       </select>
     </label>
   </div>

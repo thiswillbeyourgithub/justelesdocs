@@ -17,7 +17,7 @@ const { loadIndexFromDisk } = await import(`${root}/server/load.mjs`);
 test("the sweeps' defaults are the options the service ranks with when a request names none", async () => {
   let seen = null;
   const fake = {
-    FIGURE_MODES: ["include", "exclude", "only"], RESCORE_DEPTH: 50,
+    FIGURE_MODES: ["include", "exclude", "only", "tables", "images"], RESCORE_DEPTH: 50,
     parseQuery: (q) => ({ positive: [q], negative: [], lexical: q }),
     embedParsedQuery: async () => new Int8Array(8),
     rank: (_index, _vector, _filters, options) => { seen = options; return []; },

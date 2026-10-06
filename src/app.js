@@ -140,7 +140,8 @@ if (load(VIEW_KEY) === "documents") view = "documents";
      an old guideline that answers the question should not lose to a newer one that
      only mentions it.
    - `figures`: described figures competing with the text (the default), left out,
-     or alone. One of FIGURE_MODES.
+     alone, or alone and of one kind (tables, or every other image). One of
+     FIGURE_MODES.
 
    `check` and `label` are element ids: the control, and the words beside it that
    carry the explanation as a tooltip (the box itself is three pixels wide). */
