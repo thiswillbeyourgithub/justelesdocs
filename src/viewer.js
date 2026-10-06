@@ -940,14 +940,27 @@ els.docSearchForm?.addEventListener("submit", (event) => {
   location.href = url.toString();
 });
 // Re-render on resize so the bitmap matches the new CSS width. Debounced: a drag
-// fires this continuously and each render decodes a PDF page.
+// fires this continuously and each render decodes a PDF page. Not in text mode: the
+// text reflows by itself, and a re-render scrolls back to the passage
+// (renderPageText). On a phone the address bar showing and hiding is a resize, so
+// every slow scroll up yanked the reader back down to the passage.
 let resizeTimer = 0;
 const rerender = () => {
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (pdf) void safeRender(); }, 200);
+  resizeTimer = setTimeout(() => { if (pdf && !textMode) void safeRender(); }, 200);
 };
 addEventListener("resize", rerender);
 // The browser's own pinch fires this and not the window's resize: it changes
 // `visualViewport.scale`, which `pixelRatio` reads, so the pinched page is redrawn
 // at the resolution it is now shown at.
 window.visualViewport?.addEventListener("resize", rerender);
+
+// The sticky header's height, as --header-h, which the sticky page menu sits under
+// (app.css). Measured, not assumed: the header wraps onto a second line on a phone
+// and its height follows the font size the reader chose.
+const header = document.querySelector("header.top");
+if (header && window.ResizeObserver) {
+  new ResizeObserver(() => {
+    document.documentElement.style.setProperty("--header-h", `${header.offsetHeight}px`);
+  }).observe(header);
+}

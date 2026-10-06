@@ -30,7 +30,7 @@
          link whose label changes under you. A reader who knows which document
          they want has no question to ask; a reader looking at the list may want
          to ask one after all. `aria-current="page"` marks the one you are on, and
-         is what the accent border comes from (app.css); the viewer is neither
+         app.css hides it (a link to where you already are); the viewer is neither
          page, so there it marks nothing. -->
     <nav class="views" data-i18n-attr="aria-label:nav_label">
       <a class="plain nav" href="./" data-i18n="nav_search"></a>
@@ -92,6 +92,24 @@
        zoomed, which is what lets the highlight toggle sit over a corner of the
        document and stay there. -->
   <div class="page-frame" id="page-frame">
+    <!-- Everything that acts on the page itself, behind one kebab over its top-right
+         corner: one small control on the page rather than a row of them covering
+         its words. A <details>, like the PDF menu in the bar, so it opens without
+         script, closes on Escape and on a click elsewhere (i18n.js: closeMenus).
+         The items have no data-i18n: viewer.js writes each label, which names the
+         action the current state makes available ("hide" while it is showing).
+         FIRST in the frame, because it is sticky (app.css): it rides down with the
+         reader to the top-right of the visible part of the page, and a sticky box
+         travels only from where it sits in the flow. -->
+    <details class="page-menu" id="page-menu">
+      <summary class="plain overlay" data-i18n-attr="aria-label:page_menu,title:page_menu">⋮</summary>
+      <div class="page-menu-items">
+        <button class="plain" id="hl-btn" aria-pressed="true"></button>
+        <button class="plain" id="text-btn" aria-pressed="false"></button>
+        <button class="plain" id="copy-btn"></button>
+        <button class="plain" id="full-btn"></button>
+      </div>
+    </details>
     <div class="page-scroll" id="scroll">
       <!-- The canvas, the highlight layer and the text layer share this positioned
            box, so a box in PDF points can be placed as a percentage of it and stay
@@ -109,21 +127,6 @@
          page too faint or too small to read and for copying more than a selection
          over the canvas allows. -->
     <div class="page-text" id="pagetext" hidden></div>
-    <!-- Everything that acts on the page itself, behind one kebab over its top-right
-         corner: one small control on the page rather than a row of them covering
-         its words. A <details>, like the PDF menu in the bar, so it opens without
-         script, closes on Escape and on a click elsewhere (i18n.js: closeMenus).
-         The items have no data-i18n: viewer.js writes each label, which names the
-         action the current state makes available ("hide" while it is showing). -->
-    <details class="page-menu" id="page-menu">
-      <summary class="plain overlay" data-i18n-attr="aria-label:page_menu,title:page_menu">⋮</summary>
-      <div class="page-menu-items">
-        <button class="plain" id="hl-btn" aria-pressed="true"></button>
-        <button class="plain" id="text-btn" aria-pressed="false"></button>
-        <button class="plain" id="copy-btn"></button>
-        <button class="plain" id="full-btn"></button>
-      </div>
-    </details>
   </div>
   <!-- The pager sits under the page, where the reader's eyes already are when they
        reach the end of it, and where "next page" means what it says. Above the page

@@ -112,6 +112,10 @@ const navHrefs = await page.locator("header a.nav").evaluateAll(
 check(JSON.stringify(navHrefs) === JSON.stringify(["./*", "browse.html"]),
       "the bar offers the search and the documents, and marks this one",
       navHrefs.join(" "));
+// The marked one is not SHOWN: a button to where you already are only takes room.
+check(!(await page.locator('header a.nav[aria-current="page"]').isVisible())
+      && await page.locator('header a.nav[href="browse.html"]').isVisible(),
+      "and shows only the other one");
 
 console.log("document page");
 await page.goto(`${SITE}/browse.html`, { waitUntil: "networkidle" });
@@ -124,6 +128,9 @@ const browseNav = await page.locator("header a.nav").evaluateAll(
 check(JSON.stringify(browseNav) === JSON.stringify(["./", "browse.html*"]),
       "the same two links are here, in the same order, with the other one marked",
       browseNav.join(" "));
+check(!(await page.locator('header a.nav[aria-current="page"]').isVisible())
+      && await page.locator('header a.nav[href="./"]').isVisible(),
+      "and only the search is shown");
 
 /* The name filter. The only way to find a document by its title when the encoder
    is down, so it is checked here rather than trusted: it must narrow the list as
@@ -1479,6 +1486,30 @@ if (target) {
         "with the passage marked, and the marks on the passage's own words",
         `${markedWords.length} marked words, ${Math.round(overlap * 100)}% in the passage`);
   check(textView.wrap === "pre-wrap", "keeping the page's line breaks");
+  // Scrolled away from the passage, the reader stays where they are when the window
+  // changes size: on a phone the address bar showing and hiding is a resize, and a
+  // re-render scrolled back to the passage on every slow scroll up.
+  await viewer.evaluate(() => scrollTo(0, 0));
+  await viewer.setViewportSize({ width: 1280, height: 820 });
+  await viewer.waitForTimeout(800);
+  check(await viewer.evaluate(() => scrollY) === 0,
+        "a resize in text mode does not scroll the reader back to the passage");
+  await viewer.setViewportSize({ width: 1280, height: 900 });
+  // The menu rides down with the reader: scrolled to the bottom of a long page, it is
+  // still on screen, under the sticky header and at the page's right edge.
+  await viewer.evaluate(() => scrollTo(0, document.body.scrollHeight));
+  await viewer.waitForTimeout(300);
+  const stuck = await viewer.evaluate(() => {
+    const btn = document.querySelector("#page-menu > summary").getBoundingClientRect();
+    const head = document.querySelector("header.top").getBoundingClientRect();
+    const frame = document.querySelector("#page-frame").getBoundingClientRect();
+    return { onScreen: btn.top >= head.bottom - 1 && btn.bottom <= innerHeight,
+             right: Math.abs(btn.right - (frame.right - 0.6 * 16)) < 4,
+             scrolled: frame.top < head.bottom };
+  });
+  check(!stuck.scrolled || (stuck.onScreen && stuck.right),
+        "the page menu stays on screen at the page's top right when scrolled down",
+        JSON.stringify(stuck));
   await viewer.reload({ waitUntil: "load" });
   await viewer.waitForTimeout(1500);
   check(!(await viewer.locator("#pagetext").isHidden()), "and the choice survives a reload");

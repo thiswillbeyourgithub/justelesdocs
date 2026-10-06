@@ -111,8 +111,8 @@ header.top {
    is the document's), which reads as a broken layout rather than a wide header.
    The order is wordmark, pages, spacer, settings: the pages sit right after the
    wordmark and the `.spacer` (`flex: 1`, zero base) pushes the settings to the far
-   end. On a phone the pages take a line of their own (below), so the first line is
-   the wordmark with the settings at the other end.
+   end. On a phone the settings wrap under them (below), so the first line is the
+   wordmark followed by the pages.
    Two spacings and no third: controls inside a group (.views, .tools) sit .4rem
    apart, and the groups 1.25rem apart, so the gap itself says where one group ends.
    Before, the groups were .5rem inside and .75rem between, close enough to read as
@@ -131,8 +131,12 @@ header.top .wrap {
    unrelated menu; pushing the tour to the right end instead left it stranded under
    the settings, as if it were one of them. */
 .views, .tools { display: flex; align-items: center; gap: .4rem; }
+/* On a phone the settings, not the pages, are what wraps: the pages stay on the
+   wordmark's line and the language and theme toggles drop under it, pushed right
+   (margin-left: auto) so they still read as the settings end of the bar. */
 @media (max-width: 40rem) {
-  .views { order: 3; flex-basis: 100%; }
+  header.top .wrap { column-gap: .75rem; }
+  .tools { margin-left: auto; }
 }
 .brand { font-weight: 700; text-decoration: none; color: var(--fg); white-space: nowrap; }
 .brand span { color: var(--accent); }
@@ -184,7 +188,9 @@ a.plain.nav:hover { border-color: var(--accent); text-decoration: underline; }
 /* The page you are already on, marked the way a pressed button is marked, because
    the two nav links now sit side by side on every page and otherwise nothing in
    the bar would say which of the two you are looking at. */
-a.plain.nav[aria-current="page"] { border-color: var(--accent); color: var(--accent); }
+/* The page you are on is not offered: a button that leads where you already are
+   only takes room, which the header lacks on a phone. */
+a.plain.nav[aria-current="page"] { display: none; }
 
 /* --- search ------------------------------------------------------------- */
 .searchbox { display: flex; gap: .5rem; margin: 1.25rem 0 .5rem; align-items: flex-start; }
@@ -688,13 +694,24 @@ button.hit-text[aria-expanded="true"]:hover { color: var(--fg); }
    reader comparing the page with and without the colours should not have to look
    away from it. At the top rather than the bottom: the reader arrives at the top of
    a page, and on a long page the bottom corner is a scroll away. One small control
-   rather than a row of them, so it covers as few words as it can. */
-.page-menu { position: absolute; right: .6rem; top: .6rem; z-index: 2; }
+   rather than a row of them, so it covers as few words as it can.
+   Sticky, so it follows the reader down a long page or text and stays at the
+   top-right of whatever part of it is on screen, just under the sticky header
+   (--header-h, measured by viewer.js). It is first in the frame and takes no room:
+   a fixed height cancelled by an equal negative bottom margin, so the page starts
+   at the frame's top as if the menu were absolutely placed. A fixed height rather
+   than `height: 0`, because the open list is placed under it (top: 100%). */
+.page-menu { position: sticky; top: calc(var(--header-h, 3.5rem) + .6rem); z-index: 2;
+             width: fit-content; height: 2.2rem; margin: .6rem .6rem -2.8rem auto; }
+/* Expanded, the frame is the whole screen and its children scroll inside it, so
+   there is nothing to stick to: the corner of the screen is the right place. */
+.page-frame.expanded .page-menu { position: absolute; top: .6rem; right: .6rem; margin: 0; }
 .plain.overlay {
   list-style: none; cursor: pointer; display: block;
   background: var(--card); box-shadow: 0 1px 6px rgb(0 0 0 / .25);
   border: 1px solid var(--line); border-radius: .4rem; color: var(--fg);
   font-size: 1.1rem; font-weight: 700; line-height: 1; padding: .35rem .6rem;
+  box-sizing: border-box; height: 2.2rem; display: flex; align-items: center;
 }
 .plain.overlay::-webkit-details-marker { display: none; }
 .page-menu[open] > .plain.overlay { border-color: var(--accent); color: var(--accent); }
