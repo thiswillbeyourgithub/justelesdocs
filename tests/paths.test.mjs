@@ -13,7 +13,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const { parseRange } = await import(`${root}/src/paths.js`);
+const { parseRange, restrictedWindow } = await import(`${root}/src/paths.js`);
 
 test("a closed year range keeps both bounds", () => {
   assert.deepEqual(parseRange("2016-2020"), { from: 2016, to: 2020 });
@@ -92,4 +92,12 @@ test("the viewer opens on the page the link names", () => {
   assert.equal(openingPage("5", undefined, 10), 5);
   assert.equal(openingPage("11", undefined, 10), 1);
   assert.equal(openingPage(null, undefined, 10), 1);
+});
+
+test("a restricted document reads two pages either side of the passage's whole span", () => {
+  // A passage over pages 4 and 5: 2 to 7, six pages, whichever of the two it opened on.
+  assert.deepEqual(restrictedWindow([4, 5], 4, 100), { first: 2, last: 7 });
+  assert.deepEqual(restrictedWindow([4, 5], 5, 100), { first: 2, last: 7 });
+  assert.deepEqual(restrictedWindow([1], 1, 2), { first: 1, last: 2 }, "clamped to the document");
+  assert.deepEqual(restrictedWindow(undefined, 10, 100), { first: 8, last: 12 }, "no passage: the opening page");
 });

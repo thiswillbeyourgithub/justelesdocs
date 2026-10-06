@@ -29,7 +29,7 @@ justelesdocs est le logiciel. Les documents, leurs métadonnées et leur configu
 - Les filtres (éditeur, pays, année, langue, type de document, thème, accès) viennent des métadonnées du corpus. Les vocabulaires sont fermés, un champ à plusieurs valeurs correspond dès qu'une valeur correspond, et l'année est un curseur à deux bornes.
 - Plusieurs versions d'un même document (une synthèse, le texte complet, un argumentaire) se replient sur la mieux classée, les autres étant proposées à côté.
 - Modèle multilingue : une question dans une langue peut trouver un passage dans une autre. L'interface est bilingue français et anglais, et un corpus peut ajouter ou remplacer des textes.
-- Un niveau `access: restricted` : certains documents se lisent sans être remis. Seules la page du passage et une page de part et d'autre sont servies, découpées dans le PDF à chaque requête, et le fichier lui-même n'est jamais accessible.
+- Un niveau `access: restricted` : certains documents se lisent sans être remis. Seules les pages du passage et deux pages de part et d'autre sont proposées au lecteur, découpées dans le PDF à chaque requête, et le fichier lui-même n'est jamais accessible.
 - Les figures sont cherchables grâce à des descriptions écrites hors ligne par un modèle de vision, présentées comme telles.
 - Rien n'est traqué. La question part une fois vers le service de recherche du site, qui ne journalise ni la question ni les résultats. La mesure d'audience est désactivée sauf configuration, et même alors elle n'enregistre qu'une vue de page, sans la question.
 

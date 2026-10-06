@@ -181,3 +181,28 @@ export function openingPage(pParam, match, pageCount) {
   return Number(Object.entries(match.boxes || {})
     .sort((a, b) => b[1].length - a[1].length)[0]?.[0] || match.pages[0]);
 }
+
+// How many pages either side of the passage a restricted document may be read.
+export const RESTRICTED_MARGIN = 2;
+
+/**
+ * The first and last page a reader may reach in a restricted document.
+ *
+ * The margin is counted from the passage's whole page span, not from the page the
+ * viewer opened on: a passage over pages 4 and 5 reads 2 to 7, six pages, so the
+ * reader gets as much context after the passage as before it whichever of its pages
+ * the link opened on. Without a passage (a link naming only the document) the span is
+ * the opening page alone.
+ *
+ * @param {number[]|undefined} passagePages The linked chunk's pages, if any.
+ * @param {number} opened The page the viewer opened on.
+ * @param {number} pageCount How many pages the document has.
+ * @returns {{first: number, last: number}} Inclusive, 1-based.
+ */
+export function restrictedWindow(passagePages, opened, pageCount) {
+  const span = passagePages?.length ? passagePages : [opened];
+  return {
+    first: Math.max(1, Math.min(...span) - RESTRICTED_MARGIN),
+    last: Math.min(pageCount, Math.max(...span) + RESTRICTED_MARGIN),
+  };
+}

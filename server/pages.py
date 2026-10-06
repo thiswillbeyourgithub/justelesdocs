@@ -32,7 +32,8 @@ What this service will NOT do:
   - serve a page of anything it cannot find in the index's own document list;
   - return more than one page per request, whatever is asked for.
 
-It does not enforce the reader's three-page window. That was a deliberate
+It does not enforce the reader's page window (the passage's pages and two
+either side, src/paths.js: restrictedWindow). That was a deliberate
 decision (2026-09-24): enforcing it means signing the allowed range into the
 search response, and the window is a courtesy to the reader rather than a
 boundary. What this design buys is that the document is never addressable as a

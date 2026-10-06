@@ -160,7 +160,7 @@ const STRINGS = {
     // have this file".
     restricted_pdf: "PDF non téléchargeable",
     restricted_reason: "Ce document est sous droits : le site peut en montrer une page, pas en donner le fichier.",
-    restricted_pages: "Consultation limitée à la page du passage et à une page de part et d'autre, pour des raisons de droits.",
+    restricted_pages: "Consultation limitée aux pages du passage et à deux pages de part et d'autre, pour des raisons de droits.",
     // The link to the publisher's own page, and the warning that goes with it. The
     // caveat is in the LABEL and not only in the tooltip, because a tooltip does not
     // exist on a touch screen and this one is not a detail: the URL was found by a
@@ -231,7 +231,7 @@ const STRINGS = {
     tour_advanced: "« Recherche avancée » réunit les filtres. Ils se construisent à partir des métadonnées disponibles et apparaissent au fur et à mesure que le corpus est documenté.",
     tour_browse: "Vous cherchez un document précis et non un passage ? La liste complète des documents, avec ses propres filtres, est sur sa propre page.",
     tour_search: "Lançons la question de l'étape 1. Chaque résultat est un passage précis, pas un document entier. Plusieurs versions d'un même document sont regroupées. Un bouton bascule l'affichage par passage ou par document.",
-    tour_result: "Cliquez sur un titre pour ouvrir la page du PDF, avec le passage surligné. Le document original reste téléchargeable, sauf ceux qui sont sous droits, consultables à la page trouvée et une page de part et d'autre.",
+    tour_result: "Cliquez sur un titre pour ouvrir la page du PDF, avec le passage surligné. Le document original reste téléchargeable, sauf ceux qui sont sous droits, consultables aux pages du passage et à deux pages de part et d'autre.",
     // The language's own name, shown on the toggle that switches TO it, and the
     // locale its numbers and dates are written in.
     lang_name: "Français",
@@ -405,7 +405,7 @@ const STRINGS = {
     download_file: "Download the file",
     restricted_pdf: "PDF not downloadable",
     restricted_reason: "This document is under copyright: the site may show you a page, not give you the file.",
-    restricted_pages: "For legal reasons, reading is limited to the passage's page and one page either side.",
+    restricted_pages: "For legal reasons, reading is limited to the passage's pages and two pages either side.",
     source_link: "Source (AI)",
     source_warning: "Link to the publisher's page found by a language model, then checked automatically. It may still be fabricated or point to a different edition: check it before relying on it.",
     doi_link: "DOI",
@@ -454,7 +454,7 @@ const STRINGS = {
     tour_advanced: "\"Advanced search\" holds the filters. They are built from whatever metadata exists, and appear as the corpus gets documented.",
     tour_browse: "Looking for one document rather than a passage? The full list, with its own filters, has a page of its own.",
     tour_search: "Let's run the question from step 1. Each result is one passage, not a whole document. Several renditions of the same document are grouped together. A button switches between listing passages and listing documents.",
-    tour_result: "Click a title to open the PDF page itself, with the passage highlighted. The original document stays downloadable, except for the ones under copyright, which are readable at the page found and one page either side.",
+    tour_result: "Click a title to open the PDF page itself, with the passage highlighted. The original document stays downloadable, except for the ones under copyright, which are readable at the passage's pages and two pages either side.",
     lang_name: "English",
     locale: "en-GB",
     issuer: "Issuer", country: "Country", year: "Year", language: "Language",

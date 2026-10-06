@@ -23,7 +23,8 @@
 import { load, save } from "./store.js";
 import { t, apply, docRefLinks, pdfMenu, isRestricted, tapNote, figureNote } from "./i18n.js";
 import { setStatus } from "./site.js";
-import { pdfHref, pageHref, okJson, viewerDocId, localChunkOf, openingPage } from "./paths.js";
+import { pdfHref, pageHref, okJson, viewerDocId, localChunkOf, openingPage,
+         restrictedWindow } from "./paths.js";
 
 const els = {
   canvas: document.getElementById("canvas"),
@@ -108,25 +109,25 @@ let loadedPage = 0;
 // so `pdf.numPages` is 1 no matter where the reader is; the real count comes from the
 // index, which took it from the file at build time.
 let pageCount = 1;
-// The page the viewer opened on, which is the passage's page. It is the centre of the
-// window a restricted document may be read through, so it is remembered rather than
-// recomputed: `page` moves as the reader steps, and the window must not move with it.
+// The page the viewer opened on, which is one of the passage's pages. With the
+// passage's own pages it fixes the window a restricted document may be read through,
+// so it is remembered rather than recomputed: `page` moves as the reader steps, and
+// the window must not move with it.
 let opened = 1;
 
 /**
  * The first and last page this reader may reach from here.
  *
  * A restricted document is one the site may show but not redistribute, so it is read
- * one page either side of the passage and no further: enough to see a sentence that
- * runs over a page break, not enough to walk through the book three pages at a time.
+ * two pages either side of the passage and no further (paths.js: restrictedWindow):
+ * enough to read the passage in its context, not enough to walk through the book.
  * Every other document is bounded only by its own length.
  *
  * @returns {{first: number, last: number}} Inclusive page bounds, 1-based.
  */
 function pageWindow() {
-  const last = pageCount;
-  if (!isRestricted(doc)) return { first: 1, last };
-  return { first: Math.max(1, opened - 1), last: Math.min(last, opened + 1) };
+  if (!isRestricted(doc)) return { first: 1, last: pageCount };
+  return restrictedWindow(chunks?.[localChunk]?.pages, opened, pageCount);
 }
 
 /* Click the page to fill the screen with it, click again to come back.

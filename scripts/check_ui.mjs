@@ -1126,12 +1126,13 @@ if (target) {
       // here. It used to be `pages[0]`, and the first chunk past page 20 of the first
       // restricted document is now one spanning pages 21 to 23 with 45 of its 71
       // boxes on page 22, so the gate failed on the viewer being right. Two pages
-      // clear of the end as well, or the forward walk is stopped by the document
-      // rather than by the window, which is the other rule entirely.
+      // clear of the end as well (three, the window being two pages either side), or
+      // the forward walk is stopped by the document rather than by the window, which
+      // is the other rule entirely.
       const last = Number(doc.pages) || 0;
       const i = payload.chunks.findIndex((c) => (c.pages || []).length === 1
                                                 && c.pages[0] > 20
-                                                && (!last || c.pages[0] <= last - 2));
+                                                && (!last || c.pages[0] <= last - 3));
       if (i >= 0) return { doc: doc.id, chunk: doc.chunk_offset + i, file: doc.file,
                            page: payload.chunks[i].pages[0] };
     }
@@ -1176,15 +1177,15 @@ if (target) {
     };
     const opened = await pageno();
     check(opened === restricted.page, "it opens on the passage's page", String(opened));
-    // Three presses, one page: the arrows stop at the edge of the window and the
+    // Four presses, two pages: the arrows stop at the edge of the window and the
     // keyboard cannot get past them.
     await step("ArrowRight", opened + 1);
+    await step("ArrowRight", opened + 2);
     const forward = await refuse("ArrowRight", 2);
-    check(forward === opened + 1, "and reading forward stops one page later", `${opened} -> ${forward}`);
-    await step("ArrowLeft", opened);
-    await step("ArrowLeft", opened - 1);
+    check(forward === opened + 2, "and reading forward stops two pages later", `${opened} -> ${forward}`);
+    for (let n = opened + 1; n >= opened - 2; n -= 1) await step("ArrowLeft", n);
     const back = await refuse("ArrowLeft", 2);
-    check(back === opened - 1, "and backward one page earlier", `${forward} -> ${back}`);
+    check(back === opened - 2, "and backward two pages earlier", `${forward} -> ${back}`);
     // Standing on the first page of the window, so the backward arrow is the one that
     // must be dead, and it must say why where the pointer already is.
     // Greyed rather than merely inert, and still clickable: `disabled` would be the
