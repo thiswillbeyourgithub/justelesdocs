@@ -1458,10 +1458,24 @@ if (target) {
   await viewer.click("#copy-btn");
   await viewer.waitForTimeout(300);
   const copied = (await viewer.evaluate(() => window.__copied)) || "";
+  // The reference follows the passage, after a blank line, so it is cut off before
+  // the comparison and checked on its own.
+  const cut = copied.lastIndexOf("\n\n");
+  const copiedText = cut >= 0 ? copied.slice(0, cut) : copied;
+  const copiedRef = cut >= 0 ? copied.slice(cut + 2) : "";
   const expected = target.figure ? null : target.text.trim();
-  check(expected === null ? copied.length > 0 : copied.trim() === expected,
+  check(expected === null ? copiedText.length > 0 : copiedText.trim() === expected,
         "copying the passage puts its indexed text on the clipboard, character for character",
-        `${copied.length} characters against ${target.text.trim().length}`);
+        `${copiedText.length} characters against ${target.text.trim().length}`);
+  check(/, (p\. )?\d+(-\d+)? (of|sur) \d+$/.test(copiedRef) && copiedRef.includes(target.title.slice(0, 20)),
+        "followed by the passage's reference: title, year, page out of the document's",
+        copiedRef);
+  await viewer.evaluate(() => { window.__copied = null; });
+  await viewer.click("#page-menu > summary");
+  await viewer.click("#cite-btn");
+  await viewer.waitForTimeout(300);
+  check((await viewer.evaluate(() => window.__copied)) === copiedRef,
+        "and the menu copies that reference on its own too");
 
   /* Text mode: the whole page as text, the passage marked, in place of the image. */
   await viewer.click("#page-menu > summary");

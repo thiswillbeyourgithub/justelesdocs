@@ -187,3 +187,17 @@ test("sourceLink only links an http(s) URL", () => {
   assert.equal(link.href, "https://www.has-sante.fr/x");
   assert.equal(link.rel, "noopener noreferrer");
 });
+
+test("citation names the title, the year and the passage's pages out of the document's", () => {
+  i18n.setLang("en");
+  assert.equal(i18n.citation({ file: "a.pdf", title: "A guide", year: 2016 }, [3], 12),
+               "A guide, 2016, p. 3 of 12");
+  // A passage across two pages is a range, whatever order its pages come in.
+  assert.equal(i18n.citation({ file: "a.pdf", title: "A guide", year: 2016 }, [4, 3], 12),
+               "A guide, 2016, p. 3-4 of 12");
+  // No title falls back to the file name; no year is left out, not printed blank.
+  assert.equal(i18n.citation({ file: "a.pdf" }, [1], 4), "a.pdf, p. 1 of 4");
+  i18n.setLang("fr");
+  assert.equal(i18n.citation({ file: "a.pdf", title: "Un guide", year: 2016 }, [3], 12),
+               "Un guide, 2016, p. 3 sur 12");
+});

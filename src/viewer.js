@@ -21,7 +21,8 @@
    coordinates can be trusted at all. */
 
 import { load, save } from "./store.js";
-import { t, apply, docRefLinks, pdfMenu, isRestricted, tapNote, figureNote } from "./i18n.js";
+import { t, apply, docRefLinks, pdfMenu, isRestricted, tapNote, figureNote,
+         citation } from "./i18n.js";
 import { setStatus } from "./site.js";
 import { textRuns, toUserSpace, passageOf } from "./pagetext.js";
 import { pdfHref, pageHref, okJson, viewerDocId, localChunkOf, openingPage,
@@ -51,6 +52,7 @@ const els = {
   hlBtn: document.getElementById("hl-btn"),
   textBtn: document.getElementById("text-btn"),
   copyBtn: document.getElementById("copy-btn"),
+  citeBtn: document.getElementById("cite-btn"),
   fullBtn: document.getElementById("full-btn"),
 };
 
@@ -261,6 +263,7 @@ function paintPage() {
   els.copyBtn.textContent = t("copy_passage");
   // A link naming a document and no passage has nothing to copy.
   els.copyBtn.hidden = !chunks?.[localChunk];
+  els.citeBtn.textContent = t("copy_citation");
   els.fullBtn.textContent = t(expanded ? "fullscreen_off" : "fullscreen_on");
 }
 
@@ -853,15 +856,40 @@ els.fullBtn.addEventListener("click", () => {
   els.pageMenu.open = false;
   void setExpanded(!expanded);
 });
-els.copyBtn.addEventListener("click", async () => {
+/**
+ * The reference of what the reader is looking at: the passage's pages when there is
+ * a passage, else the page on screen. Out of `doc.pages`, the document's own count:
+ * `pageCount` is the count of what was LOADED, which for a restricted document is a
+ * one-page cut.
+ *
+ * @returns {string}
+ */
+function currentCitation() {
+  const pages = chunks?.[localChunk]?.pages?.length ? chunks[localChunk].pages : [page];
+  return citation(doc, pages, Number(doc.pages) || pageCount);
+}
+
+/**
+ * Put `text` on the clipboard and say so in the status line, or say why not.
+ *
+ * @param {() => Promise<string>|string} make - Builds the text; awaited inside the
+ *   try, so a page that fails to load is reported like a refused clipboard.
+ * @param {string} doneKey - The string key of the confirmation.
+ */
+async function copyOut(make, doneKey) {
   els.pageMenu.open = false;
   try {
-    await navigator.clipboard.writeText(await passageText());
-    setStatus(t("copied"));
+    await navigator.clipboard.writeText(await make());
+    setStatus(t(doneKey));
   } catch (error) {
     setStatus(t("copy_failed", { error: error.message || error }), true);
   }
-});
+}
+// The passage is copied with its reference right after it, so a quotation pasted
+// anywhere still says where it came from.
+els.copyBtn.addEventListener("click", () => copyOut(
+  async () => `${await passageText()}\n\n${currentCitation()}`, "copied"));
+els.citeBtn.addEventListener("click", () => copyOut(currentCitation, "citation_copied"));
 /* Whether the last click on an arrow turned a page or was refused, which is what the
    note under that arrow is about. Read rather than recomputed, because the note's
    handler runs after the one that moves the page: asking "is this the edge?" there

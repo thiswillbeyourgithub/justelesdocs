@@ -212,6 +212,9 @@ const STRINGS = {
     text_mode_off: "Revenir à l'image de la page",
     copy_passage: "Copier le texte du passage",
     copied: "Texte du passage copié.",
+    copy_citation: "Copier la référence",
+    citation_copied: "Référence copiée.",
+    citation_page: "p. {pages} sur {n}",
     copy_failed: "La copie a échoué : {error}",
     fullscreen_on: "Plein écran",
     fullscreen_off: "Quitter le plein écran",
@@ -448,6 +451,9 @@ const STRINGS = {
     text_mode_off: "Back to the page image",
     copy_passage: "Copy the passage text",
     copied: "Passage text copied.",
+    copy_citation: "Copy the reference",
+    citation_copied: "Reference copied.",
+    citation_page: "p. {pages} of {n}",
     copy_failed: "Copying failed: {error}",
     fullscreen_on: "Full screen",
     fullscreen_off: "Exit full screen",
@@ -796,6 +802,28 @@ export function isHttpUrl(url) {
  */
 export function figureNote(figure) {
   return t("figure_note", { model: figure.model || "?" });
+}
+
+/**
+ * The reference a reader pastes under a quotation: the document's title, its year,
+ * and where in it the passage is, "p. 3 of 12" (or "p. 3-4 of 12" for a passage
+ * across two pages). Out of the page count of the WHOLE document, so the reader of
+ * the quotation can tell a passage from a 4-page sheet from one deep in a 300-page
+ * report. A part the record lacks (no year) is left out, not printed as a blank.
+ *
+ * @param {{title?: string, file: string, year?: number|string}} doc - A record out
+ *   of `index/meta.json`.
+ * @param {number[]} pages - The passage's pages, 1-based, in any order.
+ * @param {number} pageCount - The document's page count.
+ * @returns {string}
+ */
+export function citation(doc, pages, pageCount) {
+  const known = pages.filter((n) => Number.isFinite(n) && n > 0);
+  const first = Math.min(...known), last = Math.max(...known);
+  const span = !known.length ? "" : first === last ? `${first}` : `${first}-${last}`;
+  return [doc.title || doc.file, doc.year,
+          span && t("citation_page", { pages: span, n: pageCount })]
+    .filter((part) => part !== undefined && part !== null && part !== "").join(", ");
 }
 
 /**
