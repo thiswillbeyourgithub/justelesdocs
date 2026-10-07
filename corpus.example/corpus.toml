@@ -195,7 +195,8 @@ issuers = [
 # The localStorage prefix: change it and every reader's saved settings are lost.
 id = "example"
 name = "justelesdocs"
-# The header's brand, in two parts: plain, then emphasised.
+# The header's brand, in up to three parts: plain, emphasised (in the accent
+# colour), then plain again. ["", "just", "docs"] colours the first word.
 brand = ["juste les ", "docs"]
 description = "Recherche sémantique dans un corpus de documents."
 browse_description = "Tous les documents du corpus, avec leurs métadonnées."

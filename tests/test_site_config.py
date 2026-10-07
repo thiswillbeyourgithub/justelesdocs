@@ -38,7 +38,7 @@ def fresh_config():
 def test_the_example_site_loads_with_its_defaults(site_config):
     site = site_config.load_site()
     assert site["id"] == "example"
-    assert site["brand"] == ["juste les ", "docs"]
+    assert site["brand"] == ["juste les ", "docs", ""]
     assert site["default_language"] == "fr"
     assert site["author"] == "" and site["logo"] is None
     assert site["legacy_keys"] == {}
@@ -49,15 +49,23 @@ def test_the_example_site_loads_with_its_defaults(site_config):
 def test_a_one_part_brand_has_an_empty_emphasis(site_config):
     write_site('[site]\nid = "x"\nname = "Plain"\n')
     site = site_config.load_site()
-    assert site["brand"] == ["Plain", ""]
+    assert site["brand"] == ["Plain", "", ""]
     assert site["languages"] == ["fr", "en"]
+
+
+def test_a_three_part_brand_emphasises_the_middle(site_config):
+    """An emphasised FIRST word needs an empty plain part and a plain tail after it."""
+    write_site('[site]\nid = "x"\nname = "n"\nbrand = ["", "psychia", "theque"]\n')
+    values = site_config.page_values(site_config.load_site())
+    page = site_config.render_page('{{brand}}<span>{{brand_em}}</span>{{brand_after}}', values)
+    assert page == "<span>psychia</span>theque"
 
 
 @pytest.mark.parametrize("table, word", [
     ('[site]\nid = "Has Space"\nname = "n"\n', "id"),
     ('[site]\nid = "x"\nname = ""\n', "name"),
     ('[site]\nid = "x"\nname = "n"\nlanguages = ["fr"]\ndefault_language = "en"\n', "default_language"),
-    ('[site]\nid = "x"\nname = "n"\nbrand = ["a", "b", "c"]\n', "brand"),
+    ('[site]\nid = "x"\nname = "n"\nbrand = ["a", "b", "c", "d"]\n', "brand"),
     ('[site]\nid = "x"\nname = "n"\nlogo = "missing.svg"\n', "logo"),
     ('[site]\nid = "x"\nname = "n"\nlegacy_keys = { old = 3 }\n', "legacy_keys"),
 ])

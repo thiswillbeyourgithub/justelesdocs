@@ -54,7 +54,7 @@ def load_site() -> dict[str, Any]:
     Returns
     -------
     dict
-        Keys: id, name, brand (two strings: plain part, emphasised part),
+        Keys: id, name, brand (three strings: plain part, emphasised part, plain tail),
         description, browse_description, languages, default_language, repo_url,
         author, logo (a Path, or None).
 
@@ -77,9 +77,9 @@ def load_site() -> dict[str, Any]:
         raise ValueError(f"{where}: [site] id {site_id!r} must match {ID_PATTERN.pattern}")
     name = text("name")
     brand = raw.get("brand", [name])
-    if (not isinstance(brand, list) or not 1 <= len(brand) <= 2
+    if (not isinstance(brand, list) or not 1 <= len(brand) <= 3
             or not all(isinstance(part, str) for part in brand)):
-        raise ValueError(f"{where}: [site] brand must be one or two strings")
+        raise ValueError(f"{where}: [site] brand must be one to three strings")
     languages = raw.get("languages", ["fr", "en"])
     if (not isinstance(languages, list) or not languages
             or not all(isinstance(code, str) and code for code in languages)):
@@ -102,7 +102,7 @@ def load_site() -> dict[str, Any]:
     return {
         "id": site_id,
         "name": name,
-        "brand": [brand[0], brand[1] if len(brand) == 2 else ""],
+        "brand": brand + [""] * (3 - len(brand)),
         "description": description,
         "browse_description": text("browse_description", description),
         "languages": languages,
@@ -154,6 +154,7 @@ def page_values(site: dict[str, Any]) -> dict[str, str]:
         "name": site["name"],
         "brand": site["brand"][0],
         "brand_em": site["brand"][1],
+        "brand_after": site["brand"][2],
         "description": site["description"],
         "browse_description": site["browse_description"],
         "lang": site["default_language"],
