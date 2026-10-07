@@ -66,6 +66,10 @@ const STRINGS = {
     advanced_narrowed: "Recherche avancée (filtres actifs)",
     // The optional query algebra. The examples are translated rather than shared,
     // because a French reader typing an English example gets English documents.
+    // First in the panel, because it changes how every result list is read: the
+    // best passage is rarely ranked first but nearly always in the top five, so a
+    // reader who stops at the first hit concludes too early.
+    syntax_top5: "Le meilleur résultat est rarement le premier, mais presque toujours dans les cinq premiers : regardez toujours au moins les cinq premiers résultats, et s'ils ne conviennent pas, reformulez la question.",
     syntax_sentence: "Écrivez une vraie phrase plutôt que des mots-clés : la recherche compare le sens des phrases, pas les mots.",
     // Same lesson as the line above, stated where it costs a reader the most: a
     // sigle is short for a human who already knows the field and nearly empty for a
@@ -347,6 +351,7 @@ const STRINGS = {
     syntax_help: "Help: how to ask",
     advanced_summary: "Advanced search",
     advanced_narrowed: "Advanced search (filters on)",
+    syntax_top5: "The best result is rarely the first one, but almost always in the top five: always look at the top five results at least, and if none of them fits, rephrase your question.",
     syntax_sentence: "Write a real sentence rather than keywords: the search compares the meaning of sentences, not the words.",
     syntax_language: "Search crosses languages: a question in one language can bring back a passage in another. The model is still much better in the document's own language, so ask in the language of the documents you are after.",
     syntax_context: "Spell acronyms out: an acronym is ambiguous to the model, its expansion is not. It works across every language and every subject at once, so each extra word of context helps.",
