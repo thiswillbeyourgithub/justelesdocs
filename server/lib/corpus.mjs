@@ -27,7 +27,7 @@ export function corpusPath(relative) {
   const dir = (process.env.CORPUS_DIR || "").trim();
   if (!dir) {
     console.error("CORPUS_DIR is not set. It names the corpus directory (data/, dist/); "
-      + "for this checkout that is usually `export CORPUS_DIR=local/psydocs`.");
+      + "for this checkout that is usually `export CORPUS_DIR=local/psychiatheque`.");
     process.exit(2);
   }
   return resolve(dir, relative);

@@ -50,7 +50,7 @@ set -euo pipefail
 # (scripts/lib/corpus.py). Made absolute BEFORE the cd below, so a relative
 # CORPUS_DIR means what it meant where the script was started, and exported so
 # every script it runs resolves its own defaults against the same corpus.
-: "${CORPUS_DIR:?CORPUS_DIR is not set: it names the corpus directory, e.g. local/psydocs}"
+: "${CORPUS_DIR:?CORPUS_DIR is not set: it names the corpus directory, e.g. local/psychiatheque}"
 CORPUS_DIR=$(realpath "$CORPUS_DIR")
 export CORPUS_DIR
 cd "$(dirname "$0")"

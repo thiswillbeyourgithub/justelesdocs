@@ -7,7 +7,7 @@ software has its own. Every script used to default to `data/...` and `dist/...`
 relative to the working directory, which tied the code to one corpus sitting
 inside its checkout. Now every such default is a path INSIDE `$CORPUS_DIR`, with
 the same relative spelling as before, so `CORPUS_DIR=.` reproduces the old layout
-exactly and `CORPUS_DIR=local/psydocs` points the same commands at a corpus kept in
+exactly and `CORPUS_DIR=local/psychiatheque` points the same commands at a corpus kept in
 its own repository.
 
 It is required rather than defaulted, deliberately: a forgotten variable that
@@ -61,7 +61,7 @@ def corpus_dir(*, required: bool = True) -> Path | None:
     if required:
         raise click.UsageError(
             f"{VARIABLE} is not set. It names the corpus directory (data/, dist/, the "
-            f"curation records); for this checkout that is usually `export {VARIABLE}=local/psydocs`.")
+            f"curation records); for this checkout that is usually `export {VARIABLE}=local/psychiatheque`.")
     return None
 
 

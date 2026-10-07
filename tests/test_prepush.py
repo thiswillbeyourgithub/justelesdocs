@@ -37,7 +37,7 @@ MUST_REFUSE = [
     "models/Snowflake/model.onnx",
     "docs/a stray copy.PDF",
     "data/private/notes.tsv",
-    "local/psydocs/corpus.toml",
+    "local/psychiatheque/corpus.toml",
 ]
 
 # Paths the hook must let through: the tracked tables at the top level of data/,
