@@ -2,8 +2,8 @@
 # Pre-push hook. Activate with: git config core.hooksPath .githooks
 #
 # One of these checks exists for a reason that outranks code quality: this repo sits
-# next to 657 MB of documents, 44 of which carry explicit no-reposting licences, and
-# the whole project exists in its current form because that material cannot be
+# next to a corpus of documents, some of which carry explicit no-reposting licences,
+# and the whole project exists in its current form because that material cannot be
 # redistributed. A pushed PDF cannot be unpushed. So the first check refuses a
 # push whose tip tree contains one, or any commit of which adds one: a file added
 # and then reverted in the range is still in the history that leaves this machine.
@@ -200,8 +200,8 @@ fi
 # --- the curation backlog --------------------------------------------------------
 # The guideline level control ships ON, and `matchesGuideline` in src/search.js never
 # hides a document whose `guideline` cell is blank. That is the right runtime
-# behaviour (418 of the 534 rows were uncurated the day the column was added, and
-# hiding them would have left the default search covering a fifth of the corpus) and
+# behaviour (most rows are uncurated the day a tier column is added, and hiding them
+# would leave the default search covering a fraction of the corpus) and
 # exactly the kind of thing that is then forgotten for months, because nothing on the
 # site looks wrong: an untiered article simply keeps showing up in a search for
 # recommendations.
