@@ -224,12 +224,15 @@ print(tomllib.load(open(sys.argv[1], "rb")).get("tiers", {}).get("column", ""))'
     echo "[pre-push]   A blank tier is searched at every level, including the narrowest." >&2
     echo "[pre-push]   Fill the column, or let manifest.py derive it from a curated doc_type." >&2
     # stdin is the list of refs being pushed, so the answer has to come from the
-    # terminal. A push with no terminal (a script, a CI runner) is told and let through.
+    # terminal. A push with no terminal (a script, a CI runner) is told and let through,
+    # and so is one where /dev/tty exists but cannot be read. At the terminal the
+    # default is No: a bare Enter is the answer of someone who stopped reading.
     if [ -r /dev/tty ]; then
-      printf '[pre-push] Push anyway? [Y/n] ' >&2
+      printf '[pre-push] Push anyway? [y/N] ' >&2
       read -r answer < /dev/tty || answer="y"
       case "$answer" in
-        [nN]*)
+        [yY]*) ;;
+        *)
           echo "[pre-push] stopped so the tiers can be filled in." >&2
           status=1
           ;;
