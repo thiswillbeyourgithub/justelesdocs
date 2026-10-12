@@ -731,9 +731,9 @@ test("searchRemote turns the service's refusals back into the errors the page tr
  *
  * The one filter that is on before the reader touches anything, which makes its
  * two departures from a facet worth pinning: the tiers are NESTED (asking for
- * `family` keeps `strict` too) and a BLANK cell PASSES (418 of the 534 documents
- * have no tier yet, and hiding them by default would leave a reader searching a
- * fifth of the corpus with nothing on screen to say so).
+ * `family` keeps `strict` too) and a BLANK cell PASSES (most documents of a
+ * freshly tiered corpus have none yet, and hiding them by default would leave a
+ * reader searching a fraction of it with nothing on screen to say so).
  */
 
 /** An index carrying tiers, as build_index.py ships them: narrowest first. */
@@ -757,7 +757,7 @@ test("a level keeps every tier at or narrower than itself", () => {
 
 test("an uncurated document is never hidden by the level", () => {
   /* The rule that separates this from every facet, where a blank cell fails. The
-   * site ships with the level on, so the facet rule would have hidden 418 of 534
+   * site ships with the level on, so the facet rule would have hidden most
    * documents from a reader who never opened the filter panel. */
   const index = tieredIndex(TIERS);
   for (const level of ["strict", "family", "wide"]) {
@@ -820,7 +820,7 @@ test("the newest document gets the whole bonus and older ones half it per half-l
 });
 
 test("a document with no year is treated as the median year of the corpus", () => {
-  /* The only value that neither rewards nor punishes a blank cell. Two of the 534
+  /* The only value that neither rewards nor punishes a blank cell. Few
    * documents are in this case, so the point is not the magnitude, it is that the
    * two obvious alternatives are silently wrong: year 0 buries the document for
    * good, and "newest" makes a missing cell the best thing that can happen to it. */

@@ -11,8 +11,8 @@ A pass on 2026-09-19 moved 53 documents into the corpus out of `DISCARDED` and
 recorded that condition in the `access` column of `data/MANIFEST.tsv`. The front
 end implemented it: `src/viewer.js` hides the download and limits reading to the
 passage's page plus one either side. Nothing below the front end knew the column
-existed, so `stage.py` symlinked all 534 PDFs into the web root and linked
-`index/doc/` whole, and the result was 495 MiB of commercial books at their own
+existed, so `stage.py` symlinked every PDF into the web root and linked
+`index/doc/` whole, and the result was every commercial book at their own
 URLs plus 58 MiB of their complete extracted text, one request per title.
 
 Nothing had been deployed, so nothing was exposed. What that episode showed is

@@ -54,7 +54,7 @@ def test_the_budget_is_not_a_cache_key_for_a_packer_that_has_no_budget(chunk):
 
     `pack_pages` and `pack_sections` take neither the target nor the overlap, so
     moving the passage target from 1024 tokens to 256 must leave both of those
-    bakes alone. Before `chunk_params` existed it invalidated all 534 documents
+    bakes alone. Before `chunk_params` existed it invalidated every document
     of `data/chunks-page`, for a number no page chunk consulted.
     """
     for mode in ("page_chunks", "section_chunks"):

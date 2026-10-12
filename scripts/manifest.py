@@ -365,8 +365,8 @@ def doi_from_metadata(pdf_path: Path) -> str:
     """The DOI a publisher wrote into the PDF's own metadata, or "".
 
     Read FIRST, before any page text, because it cannot be confused with a citation:
-    a reference list lives in the page content and never in the XMP packet. 30 of the
-    first 534 documents carry one, all of them journal articles, and every one of those is
+    a reference list lives in the page content and never in the XMP packet. the
+    documents that carry one were all journal articles, and every one of those is
     a document whose page text also holds the DOIs of everything it cites.
 
     Parameters

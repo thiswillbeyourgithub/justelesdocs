@@ -3,7 +3,7 @@
 53 documents entered the corpus on the condition that they are served without
 download (`data/CORPUS_ADDITIONS.tsv`, the `access` column of the manifest). That
 condition was implemented in `src/viewer.js` alone for five days, during which
-`stage.py` put all 534 PDFs in the web root and linked `index/doc/` whole, so
+`stage.py` put every PDF in the web root and linked `index/doc/` whole, so
 every one of those documents was a plain file at its own URL and its complete
 extracted text was one request away. Nothing was deployed, so nothing leaked.
 

@@ -163,8 +163,8 @@ services:
     build:
       # The repo root, because the service imports src/search.js. The root
       # .dockerignore denies everything but docker/, server/ and those three
-      # modules, which is what makes a root context safe in a repo whose data/
-      # holds 657 MB of documents that may never leave this machine.
+      # modules, which is what makes a root context safe in a repo that may
+      # sit next to documents that must never leave this machine.
       context: ..
       dockerfile: docker/search.Dockerfile
     container_name: ${SITE_ID:-justelesdocs}-search
@@ -232,7 +232,7 @@ services:
     build:
       # `..` for the same reason the search image uses it: the source lives in
       # server/, outside docker/. The root .dockerignore denies everything and
-      # re-admits server/, so the 657 MB under data/ cannot enter the context.
+      # re-admits server/, so no corpus document can enter the context.
       context: ..
       dockerfile: docker/pages.Dockerfile
     container_name: ${SITE_ID:-justelesdocs}-pages

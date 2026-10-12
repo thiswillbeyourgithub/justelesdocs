@@ -134,7 +134,7 @@ test("a document's identifier becomes a link, and a cell that is not one does no
    * URL, so it validates rather than trusts. NO_IDENTIFIER ("-") is a real value in
    * data/MANIFEST.tsv meaning "the extractor looked and found none", and it is what
    * most of the corpus carries: rendered as a link it would open doi.org on nothing,
-   * on 460 of the 534 documents. */
+   * on most documents. */
   i18n.setLang("en");
   const doi = i18n.identifierLink({ doi: "10.1001/jama.2023.0589", isbn: "" });
   assert.equal(doi.href, "https://doi.org/10.1001/jama.2023.0589");

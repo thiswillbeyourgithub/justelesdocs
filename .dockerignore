@@ -6,8 +6,8 @@
 # docker/, so for that image this is defence in depth.
 #
 # A build context is uploaded to the Docker daemon WHOLESALE before the first
-# instruction runs. data/ holds roughly 657 MB of documents, and 384 of them may
-# never leave this machine (44 are commercial books under explicit no-reposting
+# instruction runs. a corpus under the repo root holds documents, many
+# of which may never leave this machine (some under explicit no-reposting
 # licences; see CLAUDE.md). If anyone ever adds a Dockerfile whose context is the
 # repo root, without this file that upload would include all of them.
 #

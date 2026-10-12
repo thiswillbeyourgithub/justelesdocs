@@ -877,9 +877,9 @@ def passage_texts(payload: dict[str, Any], *, variant: str,
     def quoted_curated_label() -> str:
         """The curated title inside quotation marks, issuer and year after it.
 
-        Straight double quotes, not typographic ones and not guillemets: of the 534
-        curated titles, one already carries a typographic pair ("Putting on My Best
-        Normal") and four carry guillemets, while none carries a straight quote, so
+        Straight double quotes, not typographic ones and not guillemets: curated
+        titles were found to carry typographic pairs and guillemets but never a
+        straight quote, so
         this is the one pair that cannot be read as a title ending early.
         """
         row = manifest_row()

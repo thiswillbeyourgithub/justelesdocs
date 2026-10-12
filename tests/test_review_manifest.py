@@ -201,7 +201,7 @@ def test_a_document_with_no_chunks_still_gets_a_block(review_manifest, tmp_path)
 
 
 def test_an_untouched_row_keeps_its_bytes(review_manifest, tmp_path):
-    """One curated row must not rewrite the other 534.
+    """One curated row must not rewrite the others.
 
     `manifest.py` writes MANIFEST.tsv through `csv.DictWriter` with its default CRLF
     line terminator. A writer here that disagreed produced a 535-line diff for a

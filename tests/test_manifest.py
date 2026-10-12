@@ -352,8 +352,8 @@ def test_an_uncurated_doc_type_yields_a_blank_tier_not_no(manifest):
     """Blank means "nobody has judged this", which the site never hides.
 
     A document added to the corpus is in exactly this state until it is reviewed,
-    and 418 of the first 534 were until 2026-09-27, so answering "no" here would
-    empty the default view of the corpus.
+    and most of a corpus is when its tier column is new, so answering "no" here
+    would empty the default view of the corpus.
     """
     assert manifest.tier_from_cell("") == ""
     assert manifest.tier_from_cell("  ") == ""

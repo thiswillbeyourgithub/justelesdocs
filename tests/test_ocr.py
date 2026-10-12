@@ -143,9 +143,9 @@ def test_a_document_ocrmypdf_cannot_handle_is_skipped_by_name(ocr, corpus, monke
 def test_an_unchanged_corpus_is_neither_reclassified_nor_announced(ocr, tmp_path, monkeypatch):
     """A deploy with nothing new must not re-inspect every page, nor claim to OCR.
 
-    Every deploy used to spend about 340 s of CPU in `classify`, walking all 534
-    PDFs page by page to conclude that the same 49 were already done, and it logged
-    those 49 as needing a text layer before skipping them, which read as OCR running
+    Every deploy used to spend minutes of CPU in `classify`, walking every
+    PDF page by page to conclude that the same ones were already done, and it logged
+    them as needing a text layer before skipping them, which read as OCR running
     again on every deploy.
     """
     guidelines = tmp_path / "GUIDELINES"

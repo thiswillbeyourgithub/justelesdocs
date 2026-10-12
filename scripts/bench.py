@@ -4,7 +4,7 @@
 # ///
 """Run the whole retrieval chain over the eval corpus only, so a parameter can be swept.
 
-Measuring a chunking or baking idea used to mean rebuilding all 534 documents: about
+Measuring a chunking or baking idea used to mean rebuilding the whole corpus: about
 seven minutes of chunking, a full GPU bake, then the evaluation. At that price a
 sweep over four chunk sizes is an afternoon, so in practice ideas were argued about
 instead of measured.

@@ -392,9 +392,9 @@ check(unlabelled.length === 0, "every shipped facet value has a label in every l
       unlabelled.join(", ") || `${available.reduce((n, f) => n + (ranges.has(f.field) ? 0 : f.values.length), 0)} values x ${i18n.languages().length}`);
 
 console.log("folding (family collapse and the per-document cap are separate rules)");
-// Synthetic candidates, because the corpus cannot exercise every branch: only 50
-// of 534 documents carry a family today, and a pnds family holds no two
-// redundant renditions.
+// Synthetic candidates, because the corpus cannot exercise every branch: few
+// documents carry a family, and a family need not hold two redundant
+// renditions.
 const fake = {
   docs: [
     { id: 0, family: "f", rendition: "synthese", chunk_offset: 0, chunk_count: 9 },

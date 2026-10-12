@@ -15,7 +15,7 @@
 #
 # There is NO COPY from the build context, so compose points the context at this
 # docker/ directory rather than the repo root. That is not merely tidy: the repo
-# root holds data/, 657 MB of documents of which 384 may never leave this
+# root may hold a corpus whose documents must never leave this
 # machine, and a build context is uploaded to the Docker daemon wholesale. The
 # root .dockerignore is the second line of defence for the same reason.
 #

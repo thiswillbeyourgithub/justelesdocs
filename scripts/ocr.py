@@ -162,8 +162,8 @@ def classify_cached(pdf: Path, cache: dict[str, dict]) -> tuple[str, int]:
     """`classify`, remembered per file content.
 
     `classify` walks every page of every document, text extraction plus image and
-    drawing inspection, and that was the whole cost of a deploy's OCR step: about
-    340 s of CPU over 534 PDFs to conclude, every time, that the same 49 documents
+    drawing inspection, and that was the whole cost of a deploy's OCR step: minutes
+    of CPU over every PDF to conclude, every time, that the same documents
     were already done. Hashing the bytes is about a second for the corpus, so an
     unchanged file is never opened again.
 

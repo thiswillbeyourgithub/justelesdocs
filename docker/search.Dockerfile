@@ -10,7 +10,7 @@
 # The build context is the REPO ROOT (the service imports src/search.js, which
 # lives outside docker/), which is exactly the case the root .dockerignore was
 # written for: it denies everything and re-admits the few paths named below, so
-# the 657 MB of documents under data/ can never end up in a build context.
+# no corpus document can ever end up in a build context.
 # Anyone adding an import to the ranker, or to a module it imports, has to add
 # it to the COPY below AND re-admit it there. Forgetting the COPY does NOT fail
 # the build: the image builds and the container dies at start on a missing
