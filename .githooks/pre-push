@@ -184,17 +184,18 @@ if [ -n "$base" ]; then
     echo "[pre-push] REFUSED: only $changed changed. README.md (EN) and README.fr.md (FR) must stay in sync." >&2
     status=1
   fi
-  # Both files touched is not the same as both files saying the same thing: a section
-  # added to one and forgotten in the other passes the rule above. Section headings
-  # are the one structure a translation must preserve, so they are what gets compared;
-  # word order and sentence length are free to differ, and do.
-  fr_sections="$(grep -c '^## ' README.fr.md || true)"
-  en_sections="$(grep -c '^## ' README.md || true)"
-  if [ "$fr_sections" != "$en_sections" ]; then
-    echo "[pre-push] REFUSED: README.fr.md has $fr_sections sections and README.md has $en_sections." >&2
-    echo "[pre-push]   One language gained a section the other did not. They are one document." >&2
-    status=1
-  fi
+fi
+# Both files touched is not the same as both files saying the same thing: a section
+# added to one and forgotten in the other passes the rule above. Section headings
+# are the one structure a translation must preserve, so they are what gets compared;
+# word order and sentence length are free to differ, and do. Read from HEAD, not
+# from disk: an uncommitted fix in the working tree is not what this push sends.
+fr_sections="$(git show HEAD:README.fr.md | grep -c '^## ' || true)"
+en_sections="$(git show HEAD:README.md | grep -c '^## ' || true)"
+if [ "$fr_sections" != "$en_sections" ]; then
+  echo "[pre-push] REFUSED: README.fr.md has $fr_sections sections and README.md has $en_sections (as committed)." >&2
+  echo "[pre-push]   One language gained a section the other did not. They are one document." >&2
+  status=1
 fi
 
 # --- the curation backlog --------------------------------------------------------
