@@ -198,6 +198,61 @@ if [ "$fr_sections" != "$en_sections" ]; then
   status=1
 fi
 
+# --- questions -------------------------------------------------------------------
+# The checks below ASK rather than refuse. stdin is the list of refs being pushed, so
+# the answer has to come from the terminal. A push with no terminal (a script, a CI
+# runner) is told and let through, and so is one where /dev/tty exists but cannot be
+# read. At the terminal the default is No: a bare Enter is the answer of someone who
+# stopped reading, and so is silence once the optional timer ($1, in seconds) runs out.
+# Returns 0 to push, 1 to stop.
+ask_push_anyway() {
+  if [ ! -r /dev/tty ]; then
+    echo "[pre-push]   (no terminal to ask on, continuing)" >&2
+    return 0
+  fi
+  if [ -n "$1" ]; then
+    printf '[pre-push] Push anyway? [y/N, No in %s s] ' "$1" >&2
+  else
+    printf '[pre-push] Push anyway? [y/N] ' >&2
+  fi
+  local answer="" rc=0
+  read -r ${1:+-t "$1"} answer 2>/dev/null < /dev/tty || rc=$?
+  if [ "$rc" -gt 128 ]; then
+    printf '\n[pre-push]   no answer, taking No\n' >&2
+    return 1
+  fi
+  if [ "$rc" -ne 0 ]; then
+    printf '\n[pre-push]   (terminal cannot be read, continuing)\n' >&2
+    return 0
+  fi
+  case "$answer" in
+    [yY]*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# --- the sibling's unpushed commits ----------------------------------------------
+# This site borrows justelesRCP's encoder (its embed container, its wire format), so
+# a change often spans both repositories, and a push here while the sibling still
+# holds local commits is usually the forgotten half of a pair. Only the sibling's
+# checked-out branch against its upstream is compared: no fetch, so this costs nothing
+# and works offline, and a sibling that is absent or has no upstream is skipped.
+sibling="$repo_root/../justelesRCP"
+if [ "$status" -eq 0 ] && [ -d "$sibling/.git" ]; then
+  if unpushed="$(git -C "$sibling" log --oneline '@{upstream}..HEAD' 2>/dev/null)"; then
+    if [ -n "$unpushed" ]; then
+      echo "[pre-push] ../justelesRCP has $(printf '%s\n' "$unpushed" | wc -l) unpushed commit(s):" >&2
+      printf '%s\n' "$unpushed" | head -5 | sed 's/^/[pre-push]   /' >&2
+      ask_push_anyway 5 || {
+        echo "[pre-push] stopped so ../justelesRCP can be pushed first." >&2
+        status=1
+      }
+    fi
+  else
+    echo "[pre-push] note: ../justelesRCP has no upstream, skipping its unpushed check" >&2
+  fi
+fi
+
 # --- the curation backlog --------------------------------------------------------
 # The guideline level control ships ON, and `matchesGuideline` in src/search.js never
 # hides a document whose `guideline` cell is blank. That is the right runtime
@@ -207,9 +262,9 @@ fi
 # site looks wrong: an untiered article simply keeps showing up in a search for
 # recommendations.
 #
-# So it ASKS rather than refuses. The blanks are a backlog, not a broken tree, and a
-# hook that refused them would refuse every push until the backlog is empty. Asked
-# last, once everything else has passed, so nobody answers a question and then waits
+# So it ASKS rather than refuses (ask_push_anyway, above). The blanks are a backlog,
+# not a broken tree, and a hook that refused them would refuse every push until the
+# backlog is empty. Asked last, once everything else has passed, so nobody answers a question and then waits
 # two minutes to be told the tests failed anyway.
 if [ "$status" -eq 0 ] && [ -n "$corpus" ] && [ -f "$corpus/data/MANIFEST.tsv" ]; then
   # The tier column is the corpus's ([tiers] column in corpus.toml); a corpus with no
@@ -224,23 +279,10 @@ print(tomllib.load(open(sys.argv[1], "rb")).get("tiers", {}).get("column", ""))'
     echo "[pre-push] $untiered document(s) in data/MANIFEST.tsv have no $tier tier." >&2
     echo "[pre-push]   A blank tier is searched at every level, including the narrowest." >&2
     echo "[pre-push]   Fill the column, or let manifest.py derive it from a curated doc_type." >&2
-    # stdin is the list of refs being pushed, so the answer has to come from the
-    # terminal. A push with no terminal (a script, a CI runner) is told and let through,
-    # and so is one where /dev/tty exists but cannot be read. At the terminal the
-    # default is No: a bare Enter is the answer of someone who stopped reading.
-    if [ -r /dev/tty ]; then
-      printf '[pre-push] Push anyway? [y/N] ' >&2
-      read -r answer < /dev/tty || answer="y"
-      case "$answer" in
-        [yY]*) ;;
-        *)
-          echo "[pre-push] stopped so the tiers can be filled in." >&2
-          status=1
-          ;;
-      esac
-    else
-      echo "[pre-push]   (no terminal to ask on, continuing)" >&2
-    fi
+    ask_push_anyway "" || {
+      echo "[pre-push] stopped so the tiers can be filled in." >&2
+      status=1
+    }
   fi
 fi
 

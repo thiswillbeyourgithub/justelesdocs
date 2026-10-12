@@ -1,7 +1,7 @@
 """The one check in `.githooks/pre-push` that inspects the tree being pushed.
 
-That check is the reason the hook exists: a pushed PDF cannot be unpushed, and 44
-documents in this corpus carry explicit no-reposting licences. It is also the check
+That check is the reason the hook exists: a pushed PDF cannot be unpushed, and a
+corpus may hold documents under explicit no-reposting licences. It is also the check
 nothing else can cover, because the hook only runs on a push and a push that is
 refused for the wrong reason is indistinguishable, from the user's side, from one
 refused for the right one. It was refused for the wrong reason once: the pattern
@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
+import shutil
 import subprocess
 
 import pytest
@@ -248,3 +250,42 @@ def test_a_push_from_another_checked_out_branch_is_refused(root, repo):
     git(repo, "checkout", "-q", "-b", "other")
     out = run_branch(root, repo, f"refs/heads/main {tip} refs/heads/main {ZERO}\n")
     assert out.returncode == 1 and "not main" in out.stderr
+
+
+@pytest.fixture(scope="module")
+def ask_push_anyway(root) -> str:
+    """The hook's own y/N question, as a bash function definition."""
+    hook = (root / ".githooks" / "pre-push").read_text()
+    found = re.search(r"^ask_push_anyway\(\) \{\n.*?^\}\n", hook, re.S | re.M)
+    assert found, "ask_push_anyway is no longer where this test reads it"
+    return found.group(0)
+
+
+def ask(function: str, keys: str, timeout: str = "1") -> int:
+    """Run the question under a pseudo-terminal (`script`), typing `keys`."""
+    command = f"{function}\nask_push_anyway {timeout}; echo rc=$?"
+    out = subprocess.run(["script", "-qc", f"bash -c {shlex.quote(command)}", "/dev/null"],
+                         input=keys, capture_output=True, text=True, timeout=10)
+    return int(re.search(r"rc=(\d+)", out.stdout).group(1))
+
+
+@pytest.mark.skipif(shutil.which("script") is None, reason="needs util-linux script")
+@pytest.mark.parametrize("keys, pushes", [("y\n", True), ("Y\n", True), ("n\n", False), ("\n", False)])
+def test_the_question_defaults_to_no(ask_push_anyway, keys, pushes):
+    assert (ask(ask_push_anyway, keys) == 0) is pushes
+
+
+@pytest.mark.skipif(shutil.which("script") is None, reason="needs util-linux script")
+def test_silence_until_the_timer_runs_out_is_a_no(ask_push_anyway):
+    """`script` keeps the terminal open with nothing typed until the 1 s timer fires."""
+    command = f"{ask_push_anyway}\nask_push_anyway 1; echo rc=$?"
+    out = subprocess.run(f"sleep 3 | script -qc {shlex.quote('bash -c ' + shlex.quote(command))} /dev/null",
+                         shell=True, capture_output=True, text=True, timeout=10)
+    assert "rc=1" in out.stdout and "taking No" in out.stdout
+
+
+def test_no_terminal_lets_the_push_through(ask_push_anyway):
+    """A push from a script or a CI runner is told, not stopped."""
+    out = subprocess.run(["setsid", "bash", "-c", f"{ask_push_anyway}\nask_push_anyway 1; echo rc=$?"],
+                         stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10)
+    assert "rc=0" in out.stdout
