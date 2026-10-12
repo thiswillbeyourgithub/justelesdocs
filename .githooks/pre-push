@@ -122,11 +122,11 @@ fi
 if [ -n "$corpus" ] && [ -d "$corpus/data/chunks" ]; then
   if command -v uv > /dev/null 2>&1; then
     echo "[pre-push] verify_chunks.py"
-    uv run scripts/verify_chunks.py > /dev/null 2>&1 || {
-      echo "[pre-push] REFUSED: the chunk invariants do not hold. Re-run for the detail:" >&2
-      echo "[pre-push]   uv run scripts/verify_chunks.py" >&2
+    if ! verify_output="$(uv run scripts/verify_chunks.py 2>&1)"; then
+      echo "$verify_output" | sed 's/^/[pre-push]   /' >&2
+      echo "[pre-push] REFUSED: the chunk invariants do not hold." >&2
       status=1
-    }
+    fi
   else
     echo "[pre-push] note: uv not found, skipping verify_chunks.py" >&2
   fi
