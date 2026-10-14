@@ -11,3 +11,5 @@
   fr: Une recherche est un endroit : la question et tous les filtres sont dans la barre d'adresse, donc une recherche peut être mise en favori, partagée ou rouverte.
 - Documents whose licence forbids redistribution can be shown page by page without being handed over.
   fr: Les documents dont la licence interdit la redistribution peuvent être affichés page par page sans être remis au lecteur.
+- Usable by AI assistants: give the site's /llms.txt link once to Claude, ChatGPT, Le Chat or Gemini, and it can search the corpus and quote its passages with their source. A "Copy for an AI" button does the same for one passage or one list of results.
+  fr: Utilisable par les assistants IA : donnez une fois le lien /llms.txt du site à Claude, ChatGPT, Le Chat ou Gemini, et il pourra chercher dans le corpus et en citer les passages avec leur source. Un bouton « Copier pour une IA » fait de même pour un passage ou une liste de résultats.
