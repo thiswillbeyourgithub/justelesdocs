@@ -118,3 +118,17 @@ def test_the_gate_refuses_a_restricted_document_s_folder(built, check_served):
     index_dir, www, _ = built
     (www / "api" / "doc" / "book").mkdir()
     assert [p.name for p, _ in check_served.offending_markdown(www, index_dir, {"book.pdf"})] == ["book"]
+
+
+def test_robots_lets_assistants_into_api_and_keeps_crawlers_out(llm_pages):
+    """A person's assistant must be able to read what llms.txt points it at."""
+    from urllib.robotparser import RobotFileParser
+
+    robots = RobotFileParser()
+    robots.parse(llm_pages.ROBOTS_TXT.splitlines())
+    for agent in llm_pages.ASSISTANT_AGENTS:
+        assert robots.can_fetch(agent, "/api/search.md?q=x"), agent
+        assert robots.can_fetch(agent, "/api/doc/some-doc/p/3"), agent
+    assert not robots.can_fetch("Googlebot", "/api/search.md?q=x")
+    assert not robots.can_fetch("ClaudeBot", "/api/doc/")
+    assert robots.can_fetch("Googlebot", "/llms.txt")

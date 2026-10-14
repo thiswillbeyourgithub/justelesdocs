@@ -332,8 +332,17 @@ def render_llms_txt(site: dict, meta: dict, tiers: dict[str, str]) -> str:
     return "\n".join(sections)
 
 
+# The user agents an assistant fetches with when a PERSON asked it something, as
+# opposed to the crawlers that index or train. They honour robots.txt (Anthropic
+# documents it for Claude-User), so a bare `Disallow: /api/` would make them refuse
+# the very pages llms.txt sends them to. A group naming an agent replaces the `*`
+# group for that agent, so these are let in and every other crawler stays out.
+ASSISTANT_AGENTS = ("Claude-User", "ChatGPT-User", "Perplexity-User", "MistralAI-User")
+
 ROBOTS_TXT = """# The /api/ paths are written for AI assistants a person asked (see /llms.txt),
 # and every /api/search.md costs an embedding call: not for indexing.
 User-agent: *
 Disallow: /api/
-"""
+
+# Assistants fetching on behalf of the person who asked them.
+""" + "".join(f"User-agent: {agent}\n" for agent in ASSISTANT_AGENTS) + "Allow: /\n"

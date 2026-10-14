@@ -56,7 +56,7 @@ That page, written by `stage.py` for the corpus being served, tells the assistan
 
 Two buttons do the same for a reader: "Copy for an AI" in the viewer's menu copies the passage, its citation and these links, and the one above the results copies the Markdown address of the search on screen.
 
-The `access: restricted` tier keeps its promise here too: a restricted document gets no Markdown page and no text, and the search only quotes the one passage the page would show. `check_served.py` refuses a stage where a restricted document's text appears under `api/doc/`. `robots.txt` asks crawlers to stay out of `/api/`, and every Markdown answer carries `X-Robots-Tag: noindex`.
+The `access: restricted` tier keeps its promise here too: a restricted document gets no Markdown page and no text, and the search only quotes the one passage the page would show. `check_served.py` refuses a stage where a restricted document's text appears under `api/doc/`. `robots.txt` asks crawlers to stay out of `/api/` while letting in the agents an assistant fetches with when a person asked it something (Claude-User, ChatGPT-User and the like), and every Markdown answer carries `X-Robots-Tag: noindex`.
 
 **Why no MCP server?** The [Model Context Protocol](https://en.wikipedia.org/wiki/Model_Context_Protocol) is the other common way to plug a site into an AI assistant, but it needs a server program running next to the site, a connector that each user has to add by hand, and ongoing upkeep as the protocol evolves. It is also more attack surface on a server that is meant to stay small. justelesdocs follows the [`/llms.txt`](https://llmstxt.org) convention instead: plain files and one GET route that any assistant able to read a web page can use with nothing to install.
 
