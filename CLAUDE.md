@@ -103,8 +103,11 @@ uv run scripts/build_index.py --dims 1024
 uv run scripts/stage.py        # dist/www/: the served tree. OPEN PDFs (symlinked) + MANIFEST.tsv + src/ +
                                # vendor/ + changelog.json + app-version.js + the index's PUBLIC half.
                                # RESTRICTED PDFs go to dist/restricted/, a sibling of dist/www/, and their
-                               # per-document JSON is published without its text.
+                               # per-document JSON is published without its text. Also llms.txt,
+                               # robots.txt and api/doc/ (Markdown pages for AI assistants, OPEN
+                               # documents only; one file per page, so the first stage is slow and later ones write nothing).
 uv run scripts/check_served.py # hard gate: no restricted document, and no word of one, under dist/www/
+                               # (api/doc/ included)
 node scripts/check_search.mjs  # hard gate: runs src/search.js against the real dist/index/
 ```
 

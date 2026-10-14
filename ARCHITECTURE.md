@@ -27,7 +27,9 @@ $CORPUS_DIR/data/GUIDELINES/        the only servable corpus
   |                          -> dist/restricted/        changelog.json, app-version.js, and index/
   |                                                     as symlinks to its PUBLIC half. RESTRICTED
   |                                                     documents go to the SIBLING directory, with
-  |                                                     their chunk text stripped
+  |                                                     their chunk text stripped. Also
+  |                                                     llms.txt, robots.txt and api/doc/
+  |                                                     (Markdown pages, OPEN documents only)
   | scripts/check_served.py         hard gate: no restricted document, no word of one, in dist/www/
   | node scripts/check_search.mjs   hard gate: the shipped ranker against the real index
   v
@@ -36,7 +38,8 @@ deploy (rsync of dist/, docker/, server/, the src/ modules the search image copi
   browser --GET--> web (Caddy, read-only, 127.0.0.1:8648)  dist/www at /srv
      |
      +--POST /api/search------> search:8650 (server/service.mjs, dist/index at /index,
-     |                            nothing published on the host)
+     |  GET /api/search.md        nothing published on the host; .md is the same search
+     |                            as Markdown, for AI assistants)
      |                              |
      |                              +--> the encoder container, over the external
      |                                   EMBED_NETWORK (default justeles-embed)
@@ -65,9 +68,11 @@ The chunker's code is split by stage, with `chunk.py` keeping the command line, 
 
 **`scripts/stage.py`** assembles `dist/www/`, the tree Caddy serves: the servable PDFs as symlinks (so `dist/www/` costs nothing locally and `rsync -L` sends real files), `MANIFEST.tsv` as a copy, `src/` flat at the root, and `vendor/` as a directory. It prunes what it no longer stages, driven by its record in `.stage-manifest.json`. It links the PUBLIC half of the index into `dist/www/index/` (`meta.json` and `meta.json.gz`, relative symlinks into `../../index/`). The vectors are not linked at all, so no Caddy rule has to hide them. It also writes `manifest.webmanifest` from corpus.toml's `[site]` and rasterises `icon-192.png`, `icon-512.png` and `apple-touch-icon.png` from the staged `logo.svg` with `rsvg-convert`, which together make the site installable as an app; there is deliberately no service worker, since no current browser needs one to install and an offline copy of the index or the PDFs is what the revalidate-everything Cache-Control rule exists to prevent.
 
+**The AI-assistant pages** (`scripts/lib/llm_pages.py`, called by `stage.py`). An assistant is handed `/llms.txt` once and reads the rest on its own, so there is no MCP server to run or secure (README, "Using it with an AI assistant"). `llms.txt` is written per corpus: what it holds, the filters with their values and counts out of `meta.json`, and how to ask `GET /api/search.md` (rendered by `server/markdown.mjs`, reading the search page's own query string through `src/urlstate.js`). `api/doc/` holds `index.md` (every document), `<stem>/index.md` (one document: metadata, links, the first words of each page), `<stem>/p/<n>.md` (one page's text) and `not_found.md`, for OPEN documents only, written from the index's per-document text so they say what the search sees. Caddy maps `/api/doc/<path>` to `<path>.md` then `<path>/index.md`, answering `not_found.md` with a 404 otherwise; `dev_server.py` mirrors that order. Absolute links need `[site] url` in corpus.toml; without it they are root-relative. Files are rewritten only when their bytes change, so a first stage writes tens of thousands of files and later ones write none. `robots.txt` disallows `/api/`, and every Markdown answer carries `X-Robots-Tag: noindex`, so these pages feed assistants and never compete with the site in search engines.
+
 It is also where the `access` tier is enforced, which is the only place it can be. The manifest grades every document `open` or `restricted`, and a restricted one may be read a page at a time but never handed over whole. The front end acts on the tier but cannot enforce anything: a browser can address any URL. So `stage.py` sends restricted documents to `dist/restricted/`, a SIBLING of `dist/www/` rather than a child, which makes them unaddressable: no Caddy root reaches outside its own tree. Per-document JSON is published file by file rather than by linking the directory: whole for an open document, and with every `text` field dropped for a restricted one, which leaves the page numbers and boxes the viewer needs. Both halves are then checked rather than trusted, by the gate below.
 
-**`scripts/check_served.py`** refuses a staged tree that holds a restricted document or a word of one. It walks `dist/www/` by filename (symlinks count, since `rsync -L` turns them into files) and reads back every `index/doc/*.json` and `.json.gz` to confirm the restricted ones carry no chunk text. It runs after `stage.py`, because what it watches is a property of the staged tree rather than of the code that wrote it.
+**`scripts/check_served.py`** refuses a staged tree that holds a restricted document or a word of one. It walks `dist/www/` by filename (symlinks count, since `rsync -L` turns them into files) and reads back every `index/doc/*.json` and `.json.gz` to confirm the restricted ones carry no chunk text. It runs after `stage.py`, because what it watches is a property of the staged tree rather than of the code that wrote it. It also reads `api/doc/` back: no folder may be named after a restricted document, and no line of 60 characters or more from a restricted document's text may appear there unless an open document holds the same line, which is how two guidelines quoting the same diagnostic criteria verbatim stay legitimate.
 
 **`scripts/changelog.py`** compiles the release notes into `dist/www/changelog.json` (plus a zeroed-mtime `.gz` for Caddy), imported by `stage.py` rather than a step of its own, so no staged tree can carry stale or missing notes. The notes are `docs/changelog/<version>/changelog.md` with the root `VERSION`, or the corpus's own `$CORPUS_DIR/changelog/` and `$CORPUS_DIR/VERSION` when it ships them, which then replace the software's. It refuses when the version has no notes, when a file does not parse, or when a bullet lacks its French line. `stage.py` also writes `dist/www/app-version.js` from that version.
 

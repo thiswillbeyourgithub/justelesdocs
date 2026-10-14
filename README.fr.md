@@ -14,6 +14,7 @@ justelesdocs est le logiciel. Les documents, leurs métadonnées et leur configu
 
 - [Ce que fait le site](#ce-que-fait-le-site)
 - [Comment ça marche](#comment-ça-marche)
+- [Utilisation avec un assistant IA](#utilisation-avec-un-assistant-ia)
 - [Démarrage rapide](#démarrage-rapide)
 - [Lancer en local](#lancer-en-local)
 - [Déployer avec docker compose](#déployer-avec-docker-compose)
@@ -42,6 +43,24 @@ La chaîne de construction est une suite d'étapes `uv run scripts/*.py`, chacun
 Au moment de servir, trois conteneurs durcis tournent : Caddy (fichiers statiques, CSP stricte, limite de débit par IP), un service de recherche Node qui garde l'index en mémoire et classe, et un service de pages Python qui découpe une page d'un document restreint. L'encodeur des questions est externe (le conteneur `embed` du projet frère justelesRCP) ou, en option, dans la même pile (le profil compose `embed`). L'index est binaire, 1024 dimensions à un bit chacune, ce qui tient sur un petit serveur sans GPU.
 
 Pour l'architecture détaillée, voir [ARCHITECTURE.md](ARCHITECTURE.md) ; pour les décisions techniques et leurs mesures, [DESIGN.md](DESIGN.md).
+
+## Utilisation avec un assistant IA
+
+Un site déployé est utilisable par les IA. Collez une fois son lien `/llms.txt` dans Claude, ChatGPT, Le Chat de Mistral, Gemini ou tout assistant capable de lire une page web, et demandez-lui de retenir le site. La page de recherche le dit sous le champ de saisie, avec le lien.
+
+Cette page, écrite par `stage.py` pour le corpus servi, indique à l'assistant ce que contient le corpus et comment se servir de trois accès en texte brut :
+
+- `GET /api/search.md?q=<question>` : la même recherche que la page, avec une réponse en Markdown : les dix meilleurs passages, les métadonnées de leurs documents et des liens. Elle accepte exactement les paramètres de la page de recherche (filtres, intervalle d'années, choix de classement), donc une adresse copiée depuis la barre d'adresse fonctionne une fois son chemin changé. Le débit par IP y est plus limité que pour la recherche de la page, puisque c'est elle qu'un robot viserait.
+- `/api/doc/` : la liste des documents, puis une page Markdown par document (métadonnées, liens, premiers mots de chaque page) et une par page (son texte), écrites lors de la mise en place et servies comme fichiers statiques.
+- les liens de la visionneuse, pour donner à une personne le passage surligné sur sa page.
+
+Deux boutons font la même chose pour un lecteur : « Copier pour une IA », dans le menu de la visionneuse, copie le passage, sa référence et ces liens, et celui au-dessus des résultats copie l'adresse Markdown de la recherche affichée.
+
+Le niveau `access: restricted` tient sa promesse ici aussi : un document restreint n'a ni page Markdown ni texte, et la recherche ne cite que le seul passage que la page montrerait. `check_served.py` refuse une mise en place où le texte d'un document restreint apparaîtrait sous `api/doc/`. `robots.txt` demande aux robots d'indexation de ne pas visiter `/api/`, et chaque réponse Markdown porte `X-Robots-Tag: noindex`.
+
+**Pourquoi pas de serveur MCP ?** Le [Model Context Protocol](https://fr.wikipedia.org/wiki/Model_Context_Protocol) est l'autre façon courante de brancher un site sur un assistant IA, mais il exige un programme serveur qui tourne à côté du site, un connecteur que chaque utilisateur doit ajouter à la main, et un entretien continu au fil des évolutions du protocole. C'est aussi davantage de surface d'attaque sur un serveur censé rester modeste. justelesdocs suit plutôt la convention [`/llms.txt`](https://llmstxt.org) : des fichiers en texte brut et un accès GET que tout assistant capable de lire une page web peut utiliser sans rien installer.
+
+Réalisé avec Claude Code.
 
 ## Démarrage rapide
 

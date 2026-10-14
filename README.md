@@ -14,6 +14,7 @@ justelesdocs is the software. The documents, their metadata and their configurat
 
 - [What the site does](#what-the-site-does)
 - [How it works](#how-it-works)
+- [Using it with an AI assistant](#using-it-with-an-ai-assistant)
 - [Quick start](#quick-start)
 - [Running locally](#running-locally)
 - [Deploying with docker compose](#deploying-with-docker-compose)
@@ -42,6 +43,24 @@ The build chain is a series of `uv run scripts/*.py` steps, each gated by a cont
 At serving time three hardened containers run: Caddy (static files, strict CSP, per-IP rate limiting), a Node search service that holds the index in memory and ranks, and a Python page service that cuts one page out of a restricted document. The query encoder is external (the `embed` container of the sibling project justelesRCP) or optional in the same stack (the compose `embed` profile). The index is binary, 1024 dimensions, one bit per dimension, which fits a small server with no GPU.
 
 For the detailed architecture, see [ARCHITECTURE.md](ARCHITECTURE.md); for the technical decisions and their measurements, [DESIGN.md](DESIGN.md).
+
+## Using it with an AI assistant
+
+A deployed site is AI-ready. Paste its `/llms.txt` link once into Claude, ChatGPT, Mistral's Le Chat, Gemini or any assistant that can read web pages, and ask it to remember the site. The search page says so under the box, and links to it.
+
+That page, written by `stage.py` for the corpus being served, tells the assistant what the corpus holds and how to use three plain-text routes:
+
+- `GET /api/search.md?q=<question>`: the same search as the page, answered in Markdown, with the ten best passages, their documents' metadata and links. It takes exactly the search page's own query string (filters, year range, ranking choices), so an address copied from the address bar works once its path is changed. Rate-limited per IP more tightly than the page's own search, since it is what a crawler would hit.
+- `/api/doc/`: the list of documents, then one Markdown page per document (metadata, links, the first words of each page) and one per page (its text), written at stage time and served as static files.
+- the viewer links, for handing a person the passage highlighted on its page.
+
+Two buttons do the same for a reader: "Copy for an AI" in the viewer's menu copies the passage, its citation and these links, and the one above the results copies the Markdown address of the search on screen.
+
+The `access: restricted` tier keeps its promise here too: a restricted document gets no Markdown page and no text, and the search only quotes the one passage the page would show. `check_served.py` refuses a stage where a restricted document's text appears under `api/doc/`. `robots.txt` asks crawlers to stay out of `/api/`, and every Markdown answer carries `X-Robots-Tag: noindex`.
+
+**Why no MCP server?** The [Model Context Protocol](https://en.wikipedia.org/wiki/Model_Context_Protocol) is the other common way to plug a site into an AI assistant, but it needs a server program running next to the site, a connector that each user has to add by hand, and ongoing upkeep as the protocol evolves. It is also more attack surface on a server that is meant to stay small. justelesdocs follows the [`/llms.txt`](https://llmstxt.org) convention instead: plain files and one GET route that any assistant able to read a web page can use with nothing to install.
+
+Built with Claude Code.
 
 ## Quick start
 
