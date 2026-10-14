@@ -317,6 +317,12 @@ const STRINGS = {
     foot_suggest_issue: "une issue GitHub",
     foot_suggest_contact: "ma page de contact",
     foot_contact_url: "",
+    // Optional: a sister site, after the author line. {site} is filled by site.js
+    // with a link to foot_sister_url named foot_sister_name; with no URL the line is
+    // hidden, so a corpus that names no sister shows nothing.
+    foot_sister: "Site frère : {site}.",
+    foot_sister_name: "",
+    foot_sister_url: "",
     // Optional: where the credit's repository link lands in this language (say, a
     // README in it). Blank means the repository itself; the issue link always does.
     foot_repo_url: "",
@@ -518,6 +524,9 @@ const STRINGS = {
     foot_suggest_issue: "a GitHub issue",
     foot_suggest_contact: "my contact page",
     foot_contact_url: "",
+    foot_sister: "Sister site: {site}.",
+    foot_sister_name: "",
+    foot_sister_url: "",
     // Optional: where the credit's repository link lands in this language (say, a
     // README in it). Blank means the repository itself; the issue link always does.
     foot_repo_url: "",

@@ -192,7 +192,8 @@ let footParts = null;
 /**
  * Fill <footer class="bot" id="foot">, which every page carries empty.
  *
- * Five paragraphs in a deliberate order: who made the site, how to write to them,
+ * Five paragraphs in a deliberate order (six with the corpus's optional sister
+ * site, right after its author): who made the site, how to write to them,
  * what it was built with, what it holds, and what it is not. The three that name
  * people come first, because a reader who wants to say something about the corpus
  * should not have to read past the tooling and the legal line to find out how. The
@@ -220,6 +221,7 @@ function renderFooter() {
     // the footer instead of a property of one translated string, which would have to
     // be reordered identically in every language.
     const author = document.createElement("p");
+    const sister = document.createElement("p");
     const suggest = document.createElement("p");
     const credits = document.createElement("p");
     // The only way into the release notes that does not depend on having been here
@@ -241,9 +243,9 @@ function renderFooter() {
     button.className = "link-btn";
     button.dataset.changelog = "";
     notes.append(button);
-    wrap.append(author, suggest, credits, corpus, disclaimer, notes);
+    wrap.append(author, sister, suggest, credits, corpus, disclaimer, notes);
     foot.append(wrap);
-    footParts = { author, disclaimer, credits, suggest, button };
+    footParts = { author, sister, disclaimer, credits, suggest, button };
   }
   footParts.disclaimer.textContent = t("foot_disclaimer");
   footParts.button.textContent = t("foot_changelog");
@@ -260,6 +262,12 @@ function renderFooter() {
       author: externalLink(t("foot_author_url"), SITE.author),
     });
   }
+  // A sister site is the corpus's to name, like the contact page below.
+  const sister = t("foot_sister_url");
+  footParts.sister.hidden = !isHttpUrl(sister);
+  fillTemplate(footParts.sister, t("foot_sister"), {
+    site: externalLink(sister, t("foot_sister_name") || sister),
+  });
   fillTemplate(footParts.credits, t("foot_credits"), {
     agent: externalLink("https://claude.com/claude-code", "Claude Code"),
     // The repository's own name, so a fork's credit names the fork.
