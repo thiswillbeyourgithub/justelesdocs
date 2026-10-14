@@ -13,3 +13,5 @@
   fr: Les documents dont la licence interdit la redistribution peuvent être affichés page par page sans être remis au lecteur.
 - Usable by AI assistants: give the site's /llms.txt link once to Claude, ChatGPT, Le Chat or Gemini, and it can search the corpus and quote its passages with their source. A "Copy for an AI" button does the same for one passage or one list of results.
   fr: Utilisable par les assistants IA : donnez une fois le lien /llms.txt du site à Claude, ChatGPT, Le Chat ou Gemini, et il pourra chercher dans le corpus et en citer les passages avec leur source. Un bouton « Copier pour une IA » fait de même pour un passage ou une liste de résultats.
+- When the site has analytics, a read by an AI assistant counts as a page view too, with the assistant's name and never the question.
+  fr: Quand le site a une mesure d'audience, une lecture par un assistant IA compte aussi comme une vue de page, avec le nom de l'assistant et jamais la question.

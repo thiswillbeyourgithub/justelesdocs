@@ -32,7 +32,7 @@ justelesdocs is the software. The documents, their metadata and their configurat
 - Multilingual model: a question in one language can find a passage in another. The interface is bilingual French and English, and a corpus can add or override strings.
 - An `access: restricted` tier: some documents can be read without being handed over. Only the passage's pages and two pages either side are offered to the reader, cut out of the PDF on each request, and the file itself is never reachable.
 - Figures can be searched through descriptions written offline by a vision model, labelled as such.
-- Nothing is tracked. The question is sent once to the site's search service, which logs neither the question nor the results. Analytics are off unless configured, and even then record only a page view without the question.
+- Nothing is tracked. The question is sent once to the site's search service, which logs neither the question nor the results. Analytics are off unless configured, and even then record only a page view without the question. The pages meant for AI assistants count one page view per request on the server, with the path, the assistant's name and no question.
 
 ## How it works
 

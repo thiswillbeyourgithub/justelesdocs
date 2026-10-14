@@ -32,7 +32,7 @@ justelesdocs est le logiciel. Les documents, leurs métadonnées et leur configu
 - Modèle multilingue : une question dans une langue peut trouver un passage dans une autre. L'interface est bilingue français et anglais, et un corpus peut ajouter ou remplacer des textes.
 - Un niveau `access: restricted` : certains documents se lisent sans être remis. Seules les pages du passage et deux pages de part et d'autre sont proposées au lecteur, découpées dans le PDF à chaque requête, et le fichier lui-même n'est jamais accessible.
 - Les figures sont cherchables grâce à des descriptions écrites hors ligne par un modèle de vision, présentées comme telles.
-- Rien n'est traqué. La question part une fois vers le service de recherche du site, qui ne journalise ni la question ni les résultats. La mesure d'audience est désactivée sauf configuration, et même alors elle n'enregistre qu'une vue de page, sans la question.
+- Rien n'est traqué. La question part une fois vers le service de recherche du site, qui ne journalise ni la question ni les résultats. La mesure d'audience est désactivée sauf configuration, et même alors elle n'enregistre qu'une vue de page, sans la question. Les pages destinées aux assistants IA comptent une vue de page par requête côté serveur, avec le chemin, le nom de l'assistant et sans la question.
 
 ## Comment ça marche
 

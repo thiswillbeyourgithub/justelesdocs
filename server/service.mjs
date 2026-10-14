@@ -54,6 +54,7 @@ import { fileURLToPath } from "node:url";
 import { loadIndexFromDisk, rssMb, RANKER_SHA } from "./load.mjs";
 import { createQueue } from "./queue.mjs";
 import { renderSearch, renderError, originOf } from "./markdown.mjs";
+import { createTracker } from "./umami.mjs";
 import { readSearchParams, applyLevel, rankingOptions, LEVEL_ALL } from "../src/urlstate.js";
 
 /** Body cap; Caddy applies the same at the edge. */
@@ -351,7 +352,11 @@ function readJson(req) {
  * @param {{index: object, indexSha?: string, log?: (line: string) => void}} options
  *   `indexSha` is `indexFingerprint` of the meta.json this process loaded.
  */
-export function createHandler(service, { index, indexSha = "", log = () => {} }) {
+/* The paths Caddy's forward_auth may report to /api/hit (docker/Caddyfile): the
+   static pages written for AI assistants, and nothing a request could invent. */
+const HIT_PATHS = /^\/(llms\.txt$|api\/doc(\/|$))/;
+
+export function createHandler(service, { index, indexSha = "", log = () => {}, track = () => {} }) {
   const send = (res, status, payload, headers = {}) => {
     if (res.writableEnded) return;
     res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", ...headers });
@@ -367,7 +372,19 @@ export function createHandler(service, { index, indexSha = "", log = () => {} })
       return;
     }
     if (req.method === "GET" && url === "/api/search.md") {
+      track(req, url);
       await sendMarkdown(service, req, res, log);
+      return;
+    }
+    // Asked by Caddy's forward_auth before it serves /llms.txt or an /api/doc/ page,
+    // so those static files are counted too (server/umami.mjs). Always 204 at once:
+    // the page is served whatever umami says. Not proxied by Caddy, so only Caddy
+    // reaches it, and X-Forwarded-Uri is Caddy's own.
+    if (req.method === "GET" && url === "/api/hit") {
+      const path = String(req.headers["x-forwarded-uri"] || "").split("?")[0];
+      if (HIT_PATHS.test(path)) track(req, path);
+      res.writeHead(204);
+      res.end();
       return;
     }
     if (url !== "/api/search") {
@@ -435,7 +452,9 @@ async function main() {
   log(`encoder ${embedUrl}: ${await reachable(embedUrl) ? "answering" : "NOT answering (searches will fail with 502 until it does)"}`);
 
   const service = createSearchService({ search, index, floor, depth, textCache });
-  const server = createServer(createHandler(service, { index, indexSha, log }));
+  const tracker = createTracker(env, { log });
+  log(`umami page views for AI routes: ${tracker.enabled ? "on" : "off (ANALYTICS_URL or ANALYTICS_WEBSITE_ID unset)"}`);
+  const server = createServer(createHandler(service, { index, indexSha, log, track: tracker.track }));
   server.keepAliveTimeout = 65_000;
   server.listen(port, "0.0.0.0", () => log(`listening on :${port}, floor ${floor}, queue depth ${depth}, text cache ${textCache} documents`));
 

@@ -28,6 +28,18 @@
 # same nine lines, because the copies are what drifts: a key changed on /api/search
 # and forgotten on its health route would leave the health route as the unthrottled
 # way to reach the same container. Arguments: zone name, events, window.
+# Count a static page an AI assistant read, which runs no script: ask the search
+# service's /api/hit first (server/umami.mjs sends umami a page view, path only),
+# then serve the file. It answers 204 at once whatever umami does, but if the
+# search service is DOWN the page fails with it (502): accepted, since llms.txt
+# exists to send an assistant to /api/search.md, which is down too then.
+#   import count_ai_read [<matcher>]
+(count_ai_read) {
+	forward_auth {args[0]} {$SEARCH_UPSTREAM:search:8650} {
+		uri /api/hit
+	}
+}
+
 (per_ip_limit) {
 	rate_limit {
 		zone {args[0]} {
@@ -141,6 +153,7 @@
 	redir /api/doc /api/doc/ 308
 	handle /api/doc/* {
 		root * /srv
+		import count_ai_read *
 		header Content-Type "text/markdown; charset=utf-8"
 		header X-Robots-Tag "noindex"
 		# The folder index before {path} itself: a trailing-slash {path} matches the folder.
@@ -181,9 +194,11 @@
 	# would mean a second copy of the root and file_server configuration below,
 	# and the copy that drifts is the one that stops serving precompressed files.
 	@pdf path /pdf/*
+	@llms path /llms.txt
 
 	handle {
 		root * /srv
+		import count_ai_read @llms
 		rate_limit @pdf {
 			zone pdf {
 				key {http.request.client_ip}
