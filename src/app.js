@@ -40,7 +40,7 @@ const els = {
   viewToggle: document.getElementById("view-toggle"),
   resultControls: document.getElementById("result-controls"),
   advanced: document.getElementById("advanced"),
-  hint: document.getElementById("landing-hint"),
+  landing: document.getElementById("landing"),
   nameFilter: document.getElementById("name-filter"),
   widen: document.getElementById("widen"),
 };
@@ -1265,7 +1265,7 @@ function paintResults() {
   // printed here, which made the first screen a wall of every document under an empty
   // box and buried what the site is for. The hint takes its place and names the page
   // the list moved to.
-  if (els.hint) els.hint.hidden = Boolean(lastQuestion);
+  if (els.landing) els.landing.hidden = Boolean(lastQuestion);
   if (!lastQuestion) return;
 
   if (!lastResults.length) {

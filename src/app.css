@@ -218,6 +218,9 @@ a.plain.nav[aria-current="page"] { display: none; }
    next to the thing the reader came for, whether that is the box or the list. */
 .hint { color: var(--muted); font-size: .9rem; margin: .4rem 0 1rem; }
 .hint[hidden] { display: none; }
+/* The sister site under the box is an invitation, not a footnote: body colour. */
+.hint.sister { color: var(--fg); }
+#landing[hidden] { display: none; }
 
 /* --- filters ------------------------------------------------------------ */
 /* Facets are built from the data, so this grid holds however many columns of

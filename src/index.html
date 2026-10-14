@@ -145,10 +145,15 @@
   <!-- Shown until a question is asked, and hidden by app.js once one is. Two
        elements rather than one templated string: the link is a link, and a
        translated sentence with markup in it would have to be parsed as HTML. -->
-  <p class="hint" id="landing-hint">
-    <span data-i18n="landing_browse"></span>
-    <a href="browse.html" data-i18n="landing_browse_link"></a>
-  </p>
+  <div id="landing">
+    <p class="hint" id="landing-hint">
+      <span data-i18n="landing_browse"></span>
+      <a href="browse.html" data-i18n="landing_browse_link"></a>
+    </p>
+    <!-- The corpus's sister site, when it names one (foot_sister_url): filled by
+         site.js from the footer's own sentence, and hidden with the hint above. -->
+    <p class="hint sister" id="landing-sister" hidden></p>
+  </div>
   <!-- Hidden until a query has results: with no query the list below IS the corpus,
        one row a document, so there is nothing to switch between. Labels are written
        by app.js, which also carries the pressed state. -->

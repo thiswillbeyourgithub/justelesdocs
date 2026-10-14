@@ -184,6 +184,13 @@ function fillTemplate(el, template, nodes) {
   }
 }
 
+/** Fill `el` with the sister-site sentence, or hide it when the corpus names none. */
+function fillSister(el) {
+  const url = t("foot_sister_url");
+  el.hidden = !isHttpUrl(url);
+  fillTemplate(el, t("foot_sister"), { site: externalLink(url, t("foot_sister_name") || url) });
+}
+
 // Built once and then repainted on every language change. Rebuilding the whole footer
 // instead would replace #corpus-note, whose node app.js captured at load time and
 // writes the passage count into: the count would silently stop updating.
@@ -262,12 +269,12 @@ function renderFooter() {
       author: externalLink(t("foot_author_url"), SITE.author),
     });
   }
-  // A sister site is the corpus's to name, like the contact page below.
-  const sister = t("foot_sister_url");
-  footParts.sister.hidden = !isHttpUrl(sister);
-  fillTemplate(footParts.sister, t("foot_sister"), {
-    site: externalLink(sister, t("foot_sister_name") || sister),
-  });
+  // A sister site is the corpus's to name, like the contact page below. The search
+  // page says it under the box instead, where a first visit sees it; saying it in
+  // the footer too would print the same sentence twice on one screen.
+  const landing = document.getElementById("landing-sister");
+  fillSister(landing || footParts.sister);
+  if (landing) footParts.sister.hidden = true;
   fillTemplate(footParts.credits, t("foot_credits"), {
     agent: externalLink("https://claude.com/claude-code", "Claude Code"),
     // The repository's own name, so a fork's credit names the fork.
