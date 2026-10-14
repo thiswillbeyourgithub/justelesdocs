@@ -12,7 +12,7 @@
    elements rather than on the page name wherever that reads honestly. */
 
 import { t, apply, lang, plural, docRefLinks, pdfMenu, isRestricted, figureNote } from "./i18n.js";
-import { setStatus } from "./site.js";
+import { setStatus, copyOut, siteUrl, aiFooter } from "./site.js";
 import { load, save } from "./store.js";
 import {
   loadIndex, parseQuery, checkParsedQuery, searchRemote,
@@ -43,6 +43,7 @@ const els = {
   tourBtn: document.getElementById("tour-btn"),
   viewToggle: document.getElementById("view-toggle"),
   resultControls: document.getElementById("result-controls"),
+  aiResults: document.getElementById("ai-results-btn"),
   advanced: document.getElementById("advanced"),
   landing: document.getElementById("landing"),
   nameFilter: document.getElementById("name-filter"),
@@ -773,6 +774,21 @@ function paintWiden() {
   els.widen.append(button);
 }
 
+/**
+ * The results on screen as text for an AI assistant: the same search as Markdown.
+ *
+ * `/api/search.md` reads the page's own query string (urlstate.js), and the URL
+ * holds the whole state once a search has run (writeUrlState), so the link is this
+ * page's with its path changed.
+ */
+function resultsForAi() {
+  return [
+    t("ai_results", { q: lastQuestion, url: siteUrl(`api/search.md${location.search}`) }),
+    aiFooter(),
+  ].join("\n");
+}
+els.aiResults?.addEventListener("click", () => copyOut(resultsForAi, "ai_copied"));
+
 /** Put the chosen level into `filters` (urlstate.js: applyLevel). */
 function syncLevelFilter() {
   applyLevel(filters, tierField(index), guidelineLevel);
@@ -1356,6 +1372,10 @@ function wireExamples() {
 
 function refreshChrome() {
   apply();
+  if (els.aiResults) {
+    els.aiResults.textContent = t("copy_ai");
+    els.aiResults.title = t("copy_ai_results_title");
+  }
   wireExamples();
   refreshAdvanced();
   for (const [name, pref] of Object.entries(PREFS)) {

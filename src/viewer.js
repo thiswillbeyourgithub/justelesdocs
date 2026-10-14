@@ -23,9 +23,9 @@
 import { load, save } from "./store.js";
 import { t, apply, docRefLinks, pdfMenu, isRestricted, tapNote, figureNote,
          citation } from "./i18n.js";
-import { setStatus } from "./site.js";
+import { setStatus, copyOut as copyText, siteUrl, aiFooter } from "./site.js";
 import { textRuns, toUserSpace, passageOf } from "./pagetext.js";
-import { pdfHref, pageHref, okJson, viewerDocId, localChunkOf, openingPage,
+import { pdfHref, pageHref, apiDocHref, okJson, viewerDocId, localChunkOf, openingPage,
          restrictedWindow } from "./paths.js";
 
 const els = {
@@ -52,6 +52,7 @@ const els = {
   hlBtn: document.getElementById("hl-btn"),
   textBtn: document.getElementById("text-btn"),
   copyBtn: document.getElementById("copy-btn"),
+  aiBtn: document.getElementById("ai-btn"),
   citeBtn: document.getElementById("cite-btn"),
   fullBtn: document.getElementById("full-btn"),
 };
@@ -263,6 +264,9 @@ function paintPage() {
   els.copyBtn.textContent = t("copy_passage");
   // A link naming a document and no passage has nothing to copy.
   els.copyBtn.hidden = !chunks?.[localChunk];
+  els.aiBtn.textContent = t("copy_ai");
+  els.aiBtn.title = t("copy_ai_title");
+  els.aiBtn.hidden = els.copyBtn.hidden;
   els.citeBtn.textContent = t("copy_citation");
   els.fullBtn.textContent = t(expanded ? "fullscreen_off" : "fullscreen_on");
 }
@@ -869,27 +873,29 @@ function currentCitation() {
   return citation(doc, pages, Number(doc.pages) || pageCount);
 }
 
-/**
- * Put `text` on the clipboard and say so in the status line, or say why not.
- *
- * @param {() => Promise<string>|string} make - Builds the text; awaited inside the
- *   try, so a page that fails to load is reported like a refused clipboard.
- * @param {string} doneKey - The string key of the confirmation.
- */
-async function copyOut(make, doneKey) {
+/** site.js's copyOut, closing the menu the button sat in first. */
+function copyOut(make, doneKey) {
   els.pageMenu.open = false;
-  try {
-    await navigator.clipboard.writeText(await make());
-    setStatus(t(doneKey));
-  } catch (error) {
-    setStatus(t("copy_failed", { error: error.message || error }), true);
-  }
+  return copyText(make, doneKey);
+}
+
+/**
+ * The passage for an AI assistant: the text, its reference, where a person sees it,
+ * where the page's plain text is (open documents only: a restricted one has none,
+ * scripts/lib/llm_pages.py) and where the site's guide is.
+ */
+async function passageForAi() {
+  const lines = [await passageText(), "", currentCitation(), t("ai_viewer", { url: location.href })];
+  if (!isRestricted(doc)) lines.push(t("ai_page_text", { url: siteUrl(apiDocHref(doc.file, page)) }));
+  lines.push(aiFooter());
+  return lines.join("\n");
 }
 // The passage is copied with its reference right after it, so a quotation pasted
 // anywhere still says where it came from.
 els.copyBtn.addEventListener("click", () => copyOut(
   async () => `${await passageText()}\n\n${currentCitation()}`, "copied"));
 els.citeBtn.addEventListener("click", () => copyOut(currentCitation, "citation_copied"));
+els.aiBtn.addEventListener("click", () => copyOut(passageForAi, "ai_copied"));
 /* Whether the last click on an arrow turned a page or was refused, which is what the
    note under that arrow is about. Read rather than recomputed, because the note's
    handler runs after the one that moves the page: asking "is this the edge?" there

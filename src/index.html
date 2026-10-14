@@ -153,11 +153,16 @@
     <!-- The corpus's sister site, when it names one (foot_sister_url): filled by
          site.js from the footer's own sentence, and hidden with the hint above. -->
     <p class="hint sister" id="landing-sister" hidden></p>
+    <!-- How to hand the site to an AI assistant (/llms.txt): filled by site.js,
+         which builds the link inside the translated sentence. -->
+    <p class="hint" id="landing-ai"></p>
   </div>
   <!-- Hidden until a query has results: with no query the list below IS the corpus,
        one row a document, so there is nothing to switch between. Labels are written
        by app.js, which also carries the pressed state. -->
   <div class="result-controls" id="result-controls" hidden>
+    <!-- The results on screen as a link an AI assistant can read (/api/search.md). -->
+    <button class="plain" type="button" id="ai-results-btn"></button>
     <div class="view-toggle" id="view-toggle" role="group"
          data-i18n-attr="aria-label:view_label">
       <button class="plain" type="button" data-view="passages"></button>

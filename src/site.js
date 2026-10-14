@@ -275,6 +275,7 @@ function renderFooter() {
   const landing = document.getElementById("landing-sister");
   fillSister(landing || footParts.sister);
   if (landing) footParts.sister.hidden = true;
+  fillAi(document.getElementById("landing-ai"));
   fillTemplate(footParts.credits, t("foot_credits"), {
     agent: externalLink("https://claude.com/claude-code", "Claude Code"),
     // The repository's own name, so a fork's credit names the fork.
@@ -303,6 +304,46 @@ export function setStatus(message, isError = false) {
   if (!status) return;
   status.textContent = message;
   status.classList.toggle("error", isError);
+}
+
+/**
+ * Put `text` on the clipboard and say so in the status line, or say why not.
+ *
+ * @param {() => Promise<string>|string} make - Builds the text; awaited inside the
+ *   try, so a page that fails to load is reported like a refused clipboard.
+ * @param {string} doneKey - The string key of the confirmation.
+ */
+export async function copyOut(make, doneKey) {
+  try {
+    await navigator.clipboard.writeText(await make());
+    setStatus(t(doneKey));
+  } catch (error) {
+    setStatus(t("copy_failed", { error: error.message || error }), true);
+  }
+}
+
+/**
+ * An absolute URL on this site, for text pasted somewhere else.
+ *
+ * @param {string} path - Relative to the site root, where every page sits.
+ */
+export function siteUrl(path) {
+  return new URL(path, new URL(".", location.href)).href;
+}
+
+/**
+ * The lines an AI assistant needs after a passage or a search: where the site's
+ * plain-text guide is (/llms.txt, scripts/lib/llm_pages.py), so it can search and
+ * read further on its own.
+ */
+export function aiFooter() {
+  return t("ai_guide", { url: siteUrl("llms.txt") });
+}
+
+/** Fill the search page's line telling a visitor how to hand the site to an AI. */
+function fillAi(el) {
+  if (!el) return;
+  fillTemplate(el, t("landing_ai"), { link: externalLink("llms.txt", t("landing_ai_link")) });
 }
 
 /**
