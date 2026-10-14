@@ -24,6 +24,24 @@ export function pdfHref(doc) {
 }
 
 /**
+ * Where one document's plain-text Markdown is served, for an AI assistant.
+ *
+ * `scripts/stage.py` (stage_api_docs) writes these files under `api/doc/`, named
+ * after the PDF without its extension, and only for the open tier: a restricted
+ * document has an entry in `api/doc/index.md` and no text page. The scheme is
+ * spelled out in both places because one is Python; tests/test_stage.py and
+ * tests/markdown.test.mjs pin the same example on each side.
+ *
+ * @param {string} file - The document's file name, as `meta.json` lists it.
+ * @param {number|null} [page] - A 1-based page, or null for the document's own index.
+ * @returns {string} Path relative to the site root.
+ */
+export function apiDocHref(file, page = null) {
+  const href = `api/doc/${encodeURIComponent(file.replace(/\.pdf$/i, ""))}`;
+  return page == null ? href : `${href}/p/${page}`;
+}
+
+/**
  * Where one page of a RESTRICTED document comes from.
  *
  * Those 53 documents are not under `pdf/` at all: `scripts/stage.py` keeps them out

@@ -737,6 +737,29 @@ export async function embedParsedQuery(parsed, dims) {
 }
 
 /**
+ * The body of one search request, as `server/service.mjs` reads it.
+ *
+ * The page posts it, and the service's own `GET /api/search.md` builds it from a
+ * query string, so both ask the same question the same way.
+ *
+ * @param {string} question
+ * @param {object} filters
+ * @param {{bm25?: boolean, demoteRefs?: boolean, recent?: boolean, figures?: string}} [options]
+ *   See `searchRemote`.
+ */
+export function searchBody(question, filters, { bm25 = false, demoteRefs = false, recent = false,
+  figures = FIGURE_MODES[0] } = {}) {
+  return {
+    q: question,
+    filters,
+    bm25: Boolean(bm25),
+    demote_references: Boolean(demoteRefs),
+    favour_recent: Boolean(recent),
+    figures,
+  };
+}
+
+/**
  * Ask the search service for the answer to one question.
  *
  * The page does not rank: the service (server/service.mjs) holds the index and
@@ -762,21 +785,13 @@ export async function embedParsedQuery(parsed, dims) {
  * @param {string} [options.base] the endpoint, relative like every other fetch here.
  * @returns {Promise<{results: object[], floor: number, dims: number}>}
  */
-export async function searchRemote(question, filters, { bm25 = false, demoteRefs = false, recent = false,
-  figures = FIGURE_MODES[0], base = "api/search" } = {}) {
+export async function searchRemote(question, filters, { base = "api/search", ...options } = {}) {
   let response;
   try {
     response = await fetch(base, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        q: question,
-        filters,
-        bm25: Boolean(bm25),
-        demote_references: Boolean(demoteRefs),
-        favour_recent: Boolean(recent),
-        figures,
-      }),
+      body: JSON.stringify(searchBody(question, filters, options)),
     });
   } catch {
     throw new Error("unavailable");

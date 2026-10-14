@@ -20,8 +20,9 @@
 # Dockerfile that needs it, with a reason.
 #   docker/   web.Dockerfile's context (it COPYs nothing, but compose points there)
 #   server/   the search service (docker/search.Dockerfile), whole
-#   src/...   the four ES modules the service imports from the site: the shipped
-#             ranker, its two imports and i18n.js's own import, store.js. Named one by one, never `!src/`, so the
+#   src/...   the five ES modules the service imports from the site: the shipped
+#             ranker, its two imports and i18n.js's own import, store.js, plus
+#             urlstate.js (the search URL contract, for GET /api/search.md). Named one by one, never `!src/`, so the
 #             page's own files (and anything added to src/ later) stay out.
 !docker/
 !server/
@@ -29,6 +30,7 @@
 !src/i18n.js
 !src/paths.js
 !src/store.js
+!src/urlstate.js
 
 # Belt and braces: even if the pattern above is ever widened to `!*`, these stay
 # out. Docker applies later patterns last, so these must come after any re-admit.

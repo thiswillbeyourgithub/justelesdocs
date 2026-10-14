@@ -31,7 +31,7 @@ FROM node:22-alpine
 ENV NODE_ENV=production
 WORKDIR /app
 COPY server/ /app/server/
-COPY src/search.js src/i18n.js src/paths.js src/store.js /app/src/
+COPY src/search.js src/i18n.js src/paths.js src/store.js src/urlstate.js /app/src/
 
 # Same port as SEARCH_PORT's default in server/service.mjs and SEARCH_UPSTREAM's
 # default in the Caddyfile. Never published on the host: Caddy reaches it over

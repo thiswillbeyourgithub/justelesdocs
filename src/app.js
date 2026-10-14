@@ -22,7 +22,7 @@ import {
 import { startTour } from "./tour.js";
 import { pdfHref, viewHref, VIEWER_ASSETS } from "./paths.js";
 import {
-  readSearchParams, applyLevel, URL_PREFS, SCOPE_FIELDS, QUERY_ALIAS,
+  readSearchParams, applyLevel, rankingOptions, URL_PREFS, SCOPE_FIELDS, QUERY_ALIAS,
   LEVEL_PARAM, LEVEL_PARAM_ALIAS, LEVEL_ALL, NAME_PARAM,
 } from "./urlstate.js";
 import { createPrefetcher, prefetchAllowed, warmDocs } from "./prefetch.js";
@@ -1269,9 +1269,7 @@ async function run(question, { push = true } = {}) {
     // toggle is on, folds the renditions and cuts at the deployment's floor. Its
     // query-vector cache is what makes a re-ask, a filter change or the toggle cost
     // no encoder round trip.
-    const answer = await searchRemote(question, filters, {
-      bm25: prefs.rescore, demoteRefs: prefs.norefs, recent: prefs.recent, figures: prefs.figures,
-    });
+    const answer = await searchRemote(question, filters, rankingOptions(prefs));
     if (seq !== runSeq) return;   // a newer search was started: its answer is the one
     lastResults = answer.results;
     if (!answer.results.length) setStatus("");

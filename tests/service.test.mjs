@@ -323,3 +323,24 @@ test("searches waiting on the encoder count against the bound, not only those in
   assert.equal(bounded.inFlight(), 0);
   await loadIndexFromDisk({ indexDir, embedUrl });
 });
+
+const getMd = (query) => realFetch(`${base}/api/search.md?${query}`);
+
+test("GET /api/search.md answers the page's own query string as Markdown", async () => {
+  // fetch cannot forge Host, so the links are built on the loopback origin, over http.
+  const res = await getMd("q=passage%20two%20please&year=1990-");
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type"), /^text\/markdown/);
+  assert.equal(res.headers.get("x-robots-tag"), "noindex");
+  const body = await res.text();
+  assert.match(body, /^# Search: passage two please/);
+  assert.match(body, /^> passage 3$/m);
+  assert.match(body, /Page text: http:\/\/127\.0\.0\.1:\d+\/api\/doc\/a\/p\/2/);
+  assert.match(body, /view\.html\?doc=0&file=a\.pdf&chunk=2&p=2/);
+});
+
+test("GET /api/search.md refuses in Markdown, with the same status the POST gives", async () => {
+  const res = await getMd("q=ab");
+  assert.equal(res.status, 400);
+  assert.match(await res.text(), /^# Search error: short/);
+});

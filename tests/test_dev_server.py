@@ -16,7 +16,7 @@ CADDYFILE = ROOT / "docker" / "Caddyfile"
 def test_the_routes_are_the_caddyfile_s_proxied_paths():
     dev = load("dev_server")
     assert dev.read_routes(CADDYFILE) == {
-        "/api/search": "search", "/api/search/health": "search",
+        "/api/search": "search", "/api/search/health": "search", "/api/search.md": "search",
         "/api/page": "pages", "/api/page/health": "pages",
     }
 

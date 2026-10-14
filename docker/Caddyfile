@@ -95,6 +95,16 @@
 		reverse_proxy {$SEARCH_UPSTREAM:search:8650}
 	}
 
+	# The same search as Markdown, for AI assistants (llms.txt says how to use it):
+	# a GET carrying the search page's own query string, so no body to cap. It
+	# costs an encoder call like the POST, hence a limit of its own, tighter: an
+	# assistant asks a few questions per conversation, and a crawler that ignores
+	# robots.txt's `Disallow: /api/` should run out of budget quickly.
+	handle /api/search.md {
+		import per_ip_limit searchmd {$SEARCH_MD_RATE_EVENTS:20} {$SEARCH_MD_RATE_WINDOW:1m}
+		reverse_proxy {$SEARCH_UPSTREAM:search:8650}
+	}
+
 	# Liveness only, so the frontend can say "search unavailable" instead of
 	# failing a query. Returns {ok, dims, n_chunks, waiting, rss_mb, ranker_sha, index_sha}; no text.
 	handle /api/search/health {

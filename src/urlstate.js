@@ -85,6 +85,21 @@ export const URL_PREFS = {
 };
 
 /**
+ * The ranking choices as `search.searchBody` and `search.searchRemote` take them.
+ *
+ * @param {{rescore?: boolean|null, norefs?: boolean|null, recent?: boolean|null,
+ *   figures?: string|null}} prefs - Null or absent means the default.
+ */
+export function rankingOptions(prefs) {
+  return {
+    bm25: prefs.rescore ?? URL_PREFS.rescore.def,
+    demoteRefs: prefs.norefs ?? URL_PREFS.norefs.def,
+    recent: prefs.recent ?? URL_PREFS.recent.def,
+    figures: prefs.figures ?? URL_PREFS.figures.def,
+  };
+}
+
+/**
  * Read the question, the filters, the ranking choices and the level out of a URL.
  *
  * @param {URLSearchParams} params

@@ -17,6 +17,11 @@
  *                       "lexical", "more", "alternates", "text" } ],
  *        "floor": 0.28, "dims": 1024 }
  *
+ *   GET /api/search.md?q=...&<the search page's own URL parameters>
+ *   -> the same answer as Markdown, for an AI assistant (server/markdown.mjs). The
+ *      query string is the page's (src/urlstate.js), so a result-page link becomes
+ *      this by changing its path alone.
+ *
  *   GET /api/search/health -> { "ok": true, "dims", "n_chunks", "waiting", "rss_mb",
  *                                "ranker_sha", "index_sha" }
  *
@@ -48,6 +53,8 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadIndexFromDisk, rssMb, RANKER_SHA } from "./load.mjs";
 import { createQueue } from "./queue.mjs";
+import { renderSearch, renderError, originOf } from "./markdown.mjs";
+import { readSearchParams, applyLevel, rankingOptions, LEVEL_ALL } from "../src/urlstate.js";
 
 /** Body cap; Caddy applies the same at the edge. */
 const MAX_BODY_BYTES = 16 * 1024;
@@ -265,7 +272,24 @@ export function createSearchService({ search, index, floor = 0, depth = 24, text
     return { results: results.map(publicResult), floor, dims };
   }
 
-  return { answer, queue, dims, inFlight: () => inFlight };
+  /**
+   * The answer to a search page URL's query string, as Markdown.
+   *
+   * @param {URLSearchParams} params
+   * @param {{origin?: string, signal?: AbortSignal}} [options]
+   * @returns {Promise<string>} Throws what `answer` throws.
+   */
+  async function answerMarkdown(params, { origin = "", signal } = {}) {
+    const facets = search.facetFields(index);
+    const state = readSearchParams(params, { facets, ranges: search.rangeFields(index) });
+    // No saved preference to fall back on here: a URL without a level is the whole corpus.
+    applyLevel(state.filters, search.tierField(index), state.level || LEVEL_ALL);
+    const result = await answer(search.searchBody(state.question, state.filters, rankingOptions(state.prefs)), { signal });
+    return renderSearch({ question: state.question, answer: result, index, fields: facets,
+      origin, query: params.toString() });
+  }
+
+  return { answer, answerMarkdown, queue, dims, inFlight: () => inFlight };
 }
 
 /** HTTP status and body for one of the errors `answer` throws. */
@@ -342,6 +366,10 @@ export function createHandler(service, { index, indexSha = "", log = () => {} })
         index_sha: indexSha });
       return;
     }
+    if (req.method === "GET" && url === "/api/search.md") {
+      await sendMarkdown(service, req, res, log);
+      return;
+    }
     if (url !== "/api/search") {
       send(res, 404, { error: "not_found" });
       return;
@@ -366,6 +394,34 @@ export function createHandler(service, { index, indexSha = "", log = () => {} })
       log(`search ${status} ${payload.error} ${(performance.now() - started).toFixed(0)} ms`);
     }
   };
+}
+
+/**
+ * Answer `GET /api/search.md`, errors included, as Markdown.
+ *
+ * Search results are not for indexing: `X-Robots-Tag` says so to a crawler that
+ * ignores robots.txt's `Disallow: /api/`, and each one costs an encoder call.
+ */
+async function sendMarkdown(service, req, res, log) {
+  const controller = new AbortController();
+  res.on("close", () => { if (!res.writableFinished) controller.abort(); });
+  const started = performance.now();
+  const headers = { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": "no-store",
+    "X-Robots-Tag": "noindex" };
+  const params = new URL(req.url, "http://localhost").searchParams;
+  try {
+    const body = await service.answerMarkdown(params, { origin: originOf(req.headers.host), signal: controller.signal });
+    if (!res.writableEnded) { res.writeHead(200, headers); res.end(body); }
+    log(`search.md 200 ${(performance.now() - started).toFixed(0)} ms`);
+  } catch (error) {
+    const [status, payload] = describeError(error);
+    if (status === 499) return;
+    if (!res.writableEnded) {
+      res.writeHead(status, { ...headers, ...(status === 503 ? { "Retry-After": "2" } : {}) });
+      res.end(renderError(payload.error, payload));
+    }
+    log(`search.md ${status} ${payload.error} ${(performance.now() - started).toFixed(0)} ms`);
+  }
 }
 
 async function main() {

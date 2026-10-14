@@ -44,6 +44,20 @@ test("the ranker imports from the image's own file set alone", async () => {
   }
 });
 
+test("the service imports from the image's own file set alone", async () => {
+  // server/service.mjs imports src/urlstate.js directly, not through the ranker, so
+  // the test above cannot see that module go missing from the COPY.
+  const dir = mkdtempSync(join(tmpdir(), "search-image-"));
+  try {
+    for (const file of copiedSources()) cpSync(join(ROOT, file), join(dir, file));
+    cpSync(join(ROOT, "server"), join(dir, "server"), { recursive: true });
+    const service = await import(pathToFileURL(join(dir, "server/service.mjs")).href);
+    assert.equal(typeof service.createSearchService, "function");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("the root .dockerignore re-admits every file the Dockerfile copies", () => {
   const admitted = new Set(readFileSync(join(ROOT, ".dockerignore"), "utf8")
     .split("\n").filter((line) => line.startsWith("!")).map((line) => line.slice(1).trim()));
