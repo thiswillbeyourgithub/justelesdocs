@@ -241,9 +241,15 @@ const AUTHOR = globalThis.__SITE__.author || "";
   // same site.js, so the footer and the development banner have to be there too.
   // Cheap to check and easy to forget, since nothing else on that page comes from
   // this file.
+  // Compared with the search page's footer rather than to a fixed count: how many
+  // links it has depends on the corpus (an optional sister-site line adds one), and
+  // the search page shows that line under its box instead (#landing-sister).
   const ctx = await newContext();
+  const home = await open(ctx, { dev: "1" });
+  const expected = await home.locator("#foot a").count() + await home.locator("#landing-sister a").count();
   const page = await open(ctx, { dev: "1", path: "/browse.html" });
-  check(await page.locator("#foot a").count() === 5, "the document page carries the footer");
+  check(expected >= 5 && await page.locator("#foot a").count() === expected,
+        "the document page carries the footer");
   check(/Prototype en d.veloppement\./.test(await bannerText(page)),
         "and the development banner");
   await ctx.close();
