@@ -17,10 +17,14 @@ import { load, save } from "./store.js";
 import {
   loadIndex, parseQuery, checkParsedQuery, searchRemote,
   facets, facetFields, rangeFields, tierField, pageLabel, snippet,
-  groupByDocument, browseDocs, isActive, fold, FIGURE_MODES,
+  groupByDocument, browseDocs, isActive, fold,
 } from "./search.js";
 import { startTour } from "./tour.js";
-import { pdfHref, parseRange, viewHref, VIEWER_ASSETS } from "./paths.js";
+import { pdfHref, viewHref, VIEWER_ASSETS } from "./paths.js";
+import {
+  readSearchParams, applyLevel, URL_PREFS, SCOPE_FIELDS, QUERY_ALIAS,
+  LEVEL_PARAM, LEVEL_PARAM_ALIAS, LEVEL_ALL, NAME_PARAM,
+} from "./urlstate.js";
 import { createPrefetcher, prefetchAllowed, warmDocs } from "./prefetch.js";
 
 /* "search" (index.html) or "browse" (browse.html), from body[data-page]. Anything
@@ -55,15 +59,7 @@ const els = {
 const facetFieldsNow = () => facetFields(index);
 const rangeFieldsNow = () => rangeFields(index);
 
-/**
- * Filters that exist in the URL but get no control in the panel.
- *
- * `file` is how the viewer asks this page a question about the document the reader is
- * already in. It is a filter like any other as far as `allowedDocs` is concerned, and
- * deliberately not a facet: a hundred-odd documents make a useless dropdown, and this
- * scope is chosen where the reader already is rather than from a list.
- */
-const SCOPE_FIELDS = ["file"];
+/* Filters that exist in the URL but get no control in the panel: urlstate.js, SCOPE_FIELDS. */
 const urlFields = () => [...facetFieldsNow(), ...SCOPE_FIELDS];
 
 /* The guideline level: one filter, but not a facet. It defaults to the whole
@@ -87,13 +83,7 @@ const urlFields = () => [...facetFieldsNow(), ...SCOPE_FIELDS];
    `?guideline=` is what links said before the tier column was configurable, and
    is still read so those links keep their meaning. The storage key keeps that old
    name too, so no returning reader loses a saved level. */
-const LEVEL_PARAM = "level";
-const LEVEL_PARAM_ALIAS = "guideline";
 const LEVEL_KEY = "guideline";
-/* Not a tier: the value that means "filter nothing at all". It is spelled out rather
-   than left as an empty string so that a URL can say it, which is the only way a
-   shared link can override a reader's saved preference in the widening direction. */
-const LEVEL_ALL = "all";
 const LEVEL_DEFAULT = LEVEL_ALL;
 let guidelineLevel = LEVEL_DEFAULT;
 guidelineLevel = load(LEVEL_KEY) || guidelineLevel;
@@ -143,26 +133,15 @@ if (load(VIEW_KEY) === "documents") view = "documents";
      alone, or alone and of one kind (tables, or every other image). One of
      FIGURE_MODES.
 
-   `check` and `label` are element ids: the control, and the words beside it that
-   carry the explanation as a tooltip (the box itself is three pixels wide). */
-const BOOLEAN = {
-  fromUrl: (raw) => (raw === "1" ? true : raw === "0" ? false : null),
-  toUrl: (value) => (value ? "1" : "0"),
-  fromStore: (raw) => (raw === "on" ? true : raw === "off" ? false : null),
-  toStore: (value) => (value ? "on" : "off"),
-};
-const oneOf = (values) => {
-  // A value the page does not know is read as "says nothing" rather than sent on,
-  // since the service would refuse the whole search over it.
-  const known = (raw) => (values.includes(raw) ? raw : null);
-  return { fromUrl: known, toUrl: String, fromStore: known, toStore: String };
-};
+   The parameter, default and parsing of each live in urlstate.js (URL_PREFS), which
+   the search service reads too. `check` and `label` are element ids: the control,
+   and the words beside it that carry the explanation as a tooltip (the box itself is
+   three pixels wide). */
 const PREFS = {
-  rescore: { param: "bm25", def: false, ...BOOLEAN, check: "rescore-check", label: "rescore-toggle" },
-  norefs: { param: "norefs", def: false, ...BOOLEAN, check: "norefs-check", label: "norefs-toggle" },
-  recent: { param: "recent", def: false, ...BOOLEAN, check: "recent-check", label: "recent-toggle" },
-  figures: { param: "figures", def: FIGURE_MODES[0], ...oneOf(FIGURE_MODES),
-             check: "figures-select", label: "figures-toggle" },
+  rescore: { ...URL_PREFS.rescore, check: "rescore-check", label: "rescore-toggle" },
+  norefs: { ...URL_PREFS.norefs, check: "norefs-check", label: "norefs-toggle" },
+  recent: { ...URL_PREFS.recent, check: "recent-check", label: "recent-toggle" },
+  figures: { ...URL_PREFS.figures, check: "figures-select", label: "figures-toggle" },
 };
 
 /** Current value of each preference: the saved one, else its default. */
@@ -539,68 +518,13 @@ function rangeFacet(field, values) {
   return wrap;
 }
 
-/* The URL is the page's whole state: the question and every active filter.
-
-   That is what makes a result list a place. It can be bookmarked, sent to a
-   colleague, and reached again by the back button from the viewer, which is the
-   path that matters most: "retour aux résultats" has to come back to the same
-   question AND the same filters, not to a bare corpus listing.
-
-   `q` is the canonical name and `query` is accepted as an alias on the way in,
-   because `?query=` is what anyone hand-writing one of these URLs reaches for
-   first. Only `q` is ever written, so the address bar stays one shape.
-
-   A filter is one parameter named after its field (`?issuer=WHO&topic=water`), and
-   the year range is `?year=2016-2020`. A facet with several values REPEATS its
-   parameter (`?topic=water&topic=energy`) rather than joining them with a separator:
-   nothing then has to be escaped, a value containing the separator cannot corrupt
-   the list, and `?topic=tdah` written by hand or bookmarked before the control
-   could express more than one still means exactly what it meant. */
-/* The document-name filter on the browse page. Kept out of `filters` on purpose:
-   that object is the manifest's facets and goes to allowedDocs() as-is, where an
-   unknown key would be read as a column that does not exist. */
-const NAME_PARAM = "name";
+/* The URL is the page's whole state: urlstate.js holds the contract and its parser. */
 let docName = "";
-
-const QUERY_ALIAS = "query";
 
 /** Read the question and the filters out of the current URL. */
 function readUrlState() {
-  const params = new URL(location.href).searchParams;
-  const question = (params.get("q") ?? params.get(QUERY_ALIAS) ?? "").trim();
-  // Null where the URL says nothing, which the caller resolves against the saved
-  // preference (boot) or the default (popstate).
-  const ranking = {};
-  for (const [name, pref] of Object.entries(PREFS)) ranking[name] = pref.fromUrl(params.get(pref.param));
-  // Not read through the loop below: the loop writes straight into `filters`, and an
-  // absent level does not mean "no level". Null here means "the URL says nothing",
-  // which the caller resolves against the saved preference (boot) or the default
-  // (popstate, where the URL is the whole truth about that history entry).
-  const level = (params.get(LEVEL_PARAM) || params.get(LEVEL_PARAM_ALIAS) || "").trim() || null;
-  const name = (params.get(NAME_PARAM) || "").trim();
-  const next = {};
-  const facetList = facetFieldsNow();
-  const ranges = rangeFieldsNow();
-  for (const field of urlFields()) {
-    if (!ranges.has(field) && facetList.includes(field)) {
-      // Repeated parameters, in the order they appear in the URL. Read before the
-      // single-value path below, which takes the FIRST parameter and would drop the
-      // rest of the list if an empty one led it.
-      const all = params.getAll(field).map((v) => v.trim()).filter(Boolean);
-      if (all.length) next[field] = all;
-      continue;
-    }
-    const raw = (params.get(field) || "").trim();
-    if (!raw) continue;
-    if (ranges.has(field)) {
-      // "2016-2020", and "2016-" or "-2020" for an open end (paths.js: parseRange).
-      const range = parseRange(raw);
-      if (range) next[field] = range;
-    } else {
-      next[field] = raw;
-    }
-  }
-  return { question, filters: next, prefs: ranking, name, level };
+  return readSearchParams(new URL(location.href).searchParams,
+    { facets: facetFieldsNow(), ranges: rangeFieldsNow() });
 }
 
 /**
@@ -849,17 +773,9 @@ function paintWiden() {
   els.widen.append(button);
 }
 
-/**
- * Put the chosen level into `filters`, which is what the ranker and the service read.
- *
- * LEVEL_ALL is represented by the field being ABSENT rather than by a value meaning
- * "everything": `allowedDocs` skips a field nobody set, so the whole-corpus case
- * costs no per-document test, and `isActive` then agrees with the panel about
- * whether anything is being narrowed.
- */
+/** Put the chosen level into `filters` (urlstate.js: applyLevel). */
 function syncLevelFilter() {
-  if (guidelineLevel === LEVEL_ALL) delete filters[tierField(index)];
-  else filters[tierField(index)] = guidelineLevel;
+  applyLevel(filters, tierField(index), guidelineLevel);
 }
 
 /**
