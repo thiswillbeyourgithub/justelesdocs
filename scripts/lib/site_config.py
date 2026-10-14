@@ -56,7 +56,7 @@ def load_site() -> dict[str, Any]:
     dict
         Keys: id, name, brand (three strings: plain part, emphasised part, plain tail),
         description, browse_description, languages, default_language, repo_url,
-        author, logo (a Path, or None).
+        url (the public origin, or ""), author, logo (a Path, or None).
 
     Raises
     ------
@@ -89,6 +89,12 @@ def load_site() -> dict[str, Any]:
         raise ValueError(f"{where}: [site] default_language {default_language!r} "
                          f"is not one of {languages}")
     description = text("description", "")
+    # Where the site is served, for the links in llms.txt and the /api/doc/ pages,
+    # which an assistant may quote out of context. Optional: without it those links
+    # are root-relative, which resolve against wherever the file was fetched from.
+    url = text("url", "").rstrip("/")
+    if url and not url.startswith(("https://", "http://")):
+        raise ValueError(f"{where}: [site] url must start with https:// or http://, got {url!r}")
     logo = raw.get("logo")
     if logo is not None:
         logo = corpus_path(text("logo"))
@@ -108,6 +114,7 @@ def load_site() -> dict[str, Any]:
         "languages": languages,
         "default_language": default_language,
         "repo_url": text("repo_url", SOFTWARE_REPO_URL),
+        "url": url,
         "author": text("author", ""),
         "logo": logo,
         "legacy_keys": legacy_keys,

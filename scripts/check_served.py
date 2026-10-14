@@ -30,6 +30,13 @@ Three things are checked, because each one alone would have missed the failure:
 3. The `.gz` beside each of those says the same thing as the plain file. Caddy
    serves the pre-compressed copy whenever the client accepts it, so a stale one
    hands back exactly what the plain file no longer carries.
+4. The plain-text pages written for AI assistants (`api/doc/`, `llms.txt`, by
+   lib/llm_pages.py) have no folder for a restricted document and quote no line
+   of one: every line of a restricted chunk long enough to be its own, and found
+   in no open document, is looked for verbatim in every `.md` and `.txt` under
+   the web root. The second condition is not a loophole: open guidelines quote
+   the restricted reference books (diagnostic criteria, word for word), and a line
+   an open PDF already serves is not leaked by its text page.
 
 Which documents are restricted comes from TWO places, and they must agree: the
 manifest's `access` column, which is what `stage.py` obeyed, and the sha256 of
@@ -174,6 +181,58 @@ def offending_text(www: Path, meta: Path, restricted: set[str]) -> list[tuple[Pa
     return found
 
 
+# A line shorter than this could be a heading two documents share ("Introduction",
+# "Références"), and finding one in an open document's page is not a leak.
+MIN_LEAK_LINE = 60
+
+
+def offending_markdown(www: Path, index_dir: Path, restricted: set[str]) -> list[tuple[Path, str]]:
+    """Plain-text pages that belong to, or quote, a restricted document.
+
+    Reads the FULL index (`dist/index/doc/`, which still holds the restricted
+    documents' text) for the lines to look for.
+
+    Returns
+    -------
+    list[tuple[Path, str]]
+        The file and why: a restricted document's folder, or the first line of
+        restricted text it quotes.
+    """
+    meta = index_dir / "meta.json"
+    if not meta.exists():
+        return []
+    documents = json.loads(meta.read_text(encoding="utf-8")).get("documents", [])
+    found: list[tuple[Path, str]] = []
+    lines: set[str] = set()
+    shared: set[str] = set()
+
+    def long_lines(source: Path) -> set[str]:
+        if not source.exists():
+            return set()
+        return {line.strip() for chunk in json.loads(source.read_text(encoding="utf-8")).get("chunks", [])
+                for line in (chunk.get("text") or "").split("\n") if len(line.strip()) >= MIN_LEAK_LINE}
+
+    for document in documents:
+        source = index_dir / "doc" / f"{document['id']}.json"
+        if document.get("file") not in restricted:
+            shared |= long_lines(source)
+            continue
+        lines |= long_lines(source)
+        stem = document["file"][:-4] if document["file"].lower().endswith(".pdf") else document["file"]
+        folder = www / "api" / "doc" / stem
+        if folder.exists():
+            found.append((folder, "a restricted document's folder"))
+    lines -= shared
+    if not lines:
+        return found
+    for path in sorted(p for p in www.rglob("*") if p.suffix in (".md", ".txt") and p.is_file()):
+        for line in path.read_text(encoding="utf-8", errors="replace").split("\n"):
+            if line.lstrip("> ").strip() in lines:
+                found.append((path, line.strip()[:80]))
+                break
+    return found
+
+
 @click.command()
 @click.option("--www", type=click.Path(file_okay=False, path_type=Path),
               **in_corpus("dist/www"),
@@ -223,20 +282,24 @@ def main(www: Path, manifest: Path, index_dir: Path, additions: Path, corpus: Pa
 
     files = offending_files(www, restricted)
     texts = offending_text(www, index_dir / "meta.json", restricted)
+    pages = offending_markdown(www, index_dir, restricted)
 
     for path in files:
         logger.error(f"{path} is a restricted document inside the web root")
     for path, size in texts:
         logger.error(f"{path} carries {size:,} characters of a restricted document's text")
-    if files or texts:
+    for path, why in pages:
+        logger.error(f"{path}: {why}")
+    if files or texts or pages:
         raise click.ClickException(
-            f"{len(files)} restricted file(s) and {len(texts)} text file(s) are "
+            f"{len(files)} restricted file(s), {len(texts)} text file(s) and "
+            f"{len(pages)} plain-text page(s) are "
             "reachable under the web root. These documents entered the corpus on "
             "the condition that they are served without download (see "
             "data/CORPUS_ADDITIONS.tsv). Re-run stage.py, which splits them out.")
 
     logger.success(f"{len(restricted)} restricted documents, none reachable under {www}: "
-                   "no file by name, no published text")
+                   "no file by name, no published text, no plain-text page")
 
 
 if __name__ == "__main__":

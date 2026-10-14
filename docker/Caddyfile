@@ -132,6 +132,31 @@
 		reverse_proxy {$PAGES_UPSTREAM:pages:8651}
 	}
 
+	# The open documents as plain Markdown for AI assistants, one file per PDF page,
+	# written by scripts/stage.py (lib/llm_pages.py) into /srv/api/doc and listed in
+	# /llms.txt. Static: they cost nothing the PDFs do not already cost. An address
+	# with no page (a typo, a guessed name, a restricted document, which has no
+	# folder) gets not_found.md, the full document list, under a 404: a way out
+	# rather than a dead end. scripts/dev_server.py resolves the same three spellings.
+	redir /api/doc /api/doc/ 308
+	handle /api/doc/* {
+		root * /srv
+		header Content-Type "text/markdown; charset=utf-8"
+		header X-Robots-Tag "noindex"
+		# The folder index before {path} itself: a trailing-slash {path} matches the folder.
+		@page file {path}.md {path}/index.md {path}
+		handle @page {
+			rewrite * {file_match.relative}
+			file_server
+		}
+		handle {
+			rewrite * /api/doc/not_found.md
+			file_server {
+				status 404
+			}
+		}
+	}
+
 	# Everything else under /api/ is not ours to expose. 404 rather than 403: there
 	# is no reason to confirm that an endpoint exists behind this host.
 	handle /api/* {

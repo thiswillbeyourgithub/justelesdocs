@@ -213,6 +213,9 @@ default_language = "fr"
 # repo_url = "https://github.com/you/your-fork"
 # author = "Your Name"
 # logo = "logo.svg"
+# Optional: where the site is served, so llms.txt and the /api/doc/ pages written
+# for AI assistants carry absolute links (else root-relative ones).
+# url = "https://docs.example.org"
 # Optional: localStorage keys this site used before it had a prefix, old name ->
 # name under the prefix, moved once by src/store.js so no reader loses a setting.
 # legacy_keys = { old_changelog_seen = "changelogSeen" }

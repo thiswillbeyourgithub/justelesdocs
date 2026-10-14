@@ -70,7 +70,7 @@ from pathlib import Path
 import click
 from loguru import logger
 
-from lib import manifest_io, site_config
+from lib import llm_pages, manifest_io, site_config
 from lib.corpus import corpus_path, in_corpus
 
 # Where the two candidate sources live, relative to the repo root. Only these
@@ -680,6 +680,19 @@ def main(chunks: Path, manifest: Path, out: Path, index_dir: Path, assets: tuple
     if linked or stripped:
         logger.success(f"per-document text: {linked} published whole, {stripped} published "
                        "without their text (access: restricted)")
+    # The same text for AI assistants, as Markdown, open documents only
+    # (lib/llm_pages.py), and the llms.txt that says how to read and search it.
+    site = site_config.load_site()
+    written, changed = llm_pages.stage_api_docs(index_dir, out, tiers, site["url"])
+    if written:
+        logger.success(f"api/doc/: {written} open documents as Markdown pages, {changed} files "
+                       "written or changed")
+    if (index_dir / "meta.json").exists():
+        meta = json.loads((index_dir / "meta.json").read_text(encoding="utf-8"))
+        llm_pages.write_if_changed(out / "llms.txt", llm_pages.render_llms_txt(site, meta, tiers))
+        llm_pages.write_if_changed(out / "robots.txt", llm_pages.ROBOTS_TXT)
+        if not site["url"]:
+            logger.info("llms.txt links are root-relative: set [site] url in corpus.toml for absolute ones")
     if not stage_index(index_dir, out / "index"):
         logger.warning(f"no search index in {index_dir}: the site will load but "
                        "cannot search. Build one with:\n"

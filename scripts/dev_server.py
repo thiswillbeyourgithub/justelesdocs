@@ -55,6 +55,7 @@ import mimetypes
 import re
 import socketserver
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -79,6 +80,9 @@ UPSTREAM = re.compile(r"reverse_proxy\s+\{\$([A-Z]+)_UPSTREAM:")
 HIDE = re.compile(r"^\s*hide\s+(.+)$", re.M)
 HEADER_BLOCK = re.compile(r"^\theader\s*\{\n(.*?)^\t\}", re.M | re.S)
 HEADER_LINE = re.compile(r'^\s*([A-Za-z-]+)\s+"([^"]*)"\s*$', re.M)
+# The static Markdown tree for AI assistants (Caddyfile: `handle /api/doc/*`), served
+# from disk rather than proxied, with the Caddyfile's own fallback order.
+API_DOC = "/api/doc/"
 PLACEHOLDER = re.compile(r"\{\$[A-Z_]+:([^}]*)\}")
 
 
@@ -201,13 +205,40 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         """Serve a file, or forward a proxied path; 404 for any other /api/ or hidden file."""
         base = self._route()
         if base is not None:
-            self._forward(urllib.request.Request(f"{base}{self.path}", method="GET"))
+            # The visitor's Host, as Caddy's reverse_proxy passes it: /api/search.md
+            # builds its absolute links on it.
+            self._forward(urllib.request.Request(f"{base}{self.path}", method="GET",
+                                                 headers={"Host": self.headers.get("Host", "")}))
             return
         path = self.path.split("?", 1)[0]
+        if path.startswith(API_DOC):
+            self._api_doc(urllib.parse.unquote(path))
+            return
         if path.startswith("/api/") or path.rsplit("/", 1)[-1] in self.hidden:
             self.send_error(404)
             return
         super().do_GET()
+
+    def _api_doc(self, path: str) -> None:
+        """Serve the static Markdown pages the way the Caddyfile's /api/doc/* handle does.
+
+        `{path}.md`, then `{path}/index.md`, then `{path}`, else `not_found.md` under a 404.
+        """
+        root = Path(self.directory).resolve()
+        found, status = None, 200
+        for candidate in (f"{path}.md", f"{path.rstrip('/')}/index.md", path):
+            target = (root / candidate.lstrip("/")).resolve()
+            if target.is_file() and root in target.parents:
+                found = target
+                break
+        if found is None:
+            found, status = root / API_DOC.lstrip("/") / "not_found.md", 404
+        payload = found.read_bytes() if found.is_file() else b""
+        self.send_response(status)
+        self.send_header("Content-Type", "text/markdown; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
 
     def _forward(self, request: urllib.request.Request) -> None:
         """Pass one request upstream and copy the answer back.
@@ -222,7 +253,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 payload, status = answer.read(), answer.status
                 content_type = answer.headers.get("Content-Type", "application/json")
         except urllib.error.HTTPError as exc:
-            payload, status, content_type = exc.read(), exc.code, "application/json"
+            # /api/search.md refuses in Markdown, so the type is the upstream's too.
+            payload, status = exc.read(), exc.code
+            content_type = exc.headers.get("Content-Type", "application/json")
         except OSError as exc:
             # The URL actually tried, not one fixed upstream: there are two, and a
             # log naming the search service while the page service is down sends
