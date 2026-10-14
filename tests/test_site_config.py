@@ -13,6 +13,10 @@ import pytest
 
 from conftest import load_lib
 
+# A logo rsvg-convert can draw, since brand_site rasterises the app icons from it.
+LOGO = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8">'
+        '<rect width="8" height="8" fill="#8a5cf0"/></svg>')
+
 
 @pytest.fixture
 def site_config():
@@ -113,7 +117,7 @@ def test_brand_site_writes_pages_without_touching_the_templates(stage, tmp_path)
     src.mkdir()
     template = '<html lang="{{lang}}"><title>{{name}}</title></html>'
     (src / "index.html").write_text(template, encoding="utf-8")
-    (src / "logo.svg").write_text("<svg/>", encoding="utf-8")
+    (src / "logo.svg").write_text(LOGO, encoding="utf-8")
     out = tmp_path / "www"
     out.mkdir()
     stage.stage_assets([src], out)
@@ -125,3 +129,22 @@ def test_brand_site_writes_pages_without_touching_the_templates(stage, tmp_path)
     assert 'window.__SITE__' in (out / "site-config.js").read_text(encoding="utf-8")
     # No corpus logo declared: the software's stays linked.
     assert (out / "logo.svg").is_symlink()
+
+
+def test_brand_site_makes_the_site_installable(stage, site_config, tmp_path):
+    """A manifest naming the site, and every icon it or iOS asks for, as a real PNG."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "logo.svg").write_text(LOGO, encoding="utf-8")
+    out = tmp_path / "out"
+    out.mkdir()
+    stage.stage_assets([src], out)
+    stage.brand_site(out, [src])
+    manifest = json.loads((out / "manifest.webmanifest").read_text(encoding="utf-8"))
+    assert manifest["name"] == "justelesdocs"
+    assert manifest["display"] == "standalone" and manifest["start_url"] == "./"
+    assert {icon["sizes"] for icon in manifest["icons"]} == {"192x192", "512x512"}
+    for name, size in site_config.ICONS.items():
+        png = (out / name).read_bytes()
+        assert png[:8] == b"\x89PNG\r\n\x1a\n"
+        assert int.from_bytes(png[16:20], "big") == size

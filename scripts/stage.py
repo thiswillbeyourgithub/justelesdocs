@@ -63,6 +63,7 @@ import gzip
 import json
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -498,6 +499,27 @@ def stage_index(index_dir: Path, destination: Path) -> bool:
     return present
 
 
+def rasterise_icons(logo: Path, out: Path) -> None:
+    """Write the PNG icons the web manifest and iOS ask for, drawn from `logo`.
+
+    Generated from whichever logo was just staged, the corpus's or the software's,
+    so the installed app always wears the same mark as the tab. A few milliseconds
+    with `rsvg-convert`, the rasteriser scripts/logo.py already relies on.
+    """
+    for name, size in site_config.ICONS.items():
+        try:
+            subprocess.run(["rsvg-convert", "--width", str(size), "--height", str(size),
+                            "--keep-aspect-ratio", "--background-color",
+                            site_config.ICON_BACKGROUND, "--output", str(out / name), str(logo)],
+                           check=True, capture_output=True)
+        except FileNotFoundError:
+            raise click.ClickException("rsvg-convert is missing, so the app icons cannot be "
+                                       "drawn. Install it: sudo apt install librsvg2-bin")
+        except subprocess.CalledProcessError as error:
+            raise click.ClickException(f"rsvg-convert could not draw {name} from {logo}: "
+                                       f"{error.stderr.decode(errors='replace').strip()}")
+
+
 def brand_site(out: Path, assets: list[Path]) -> None:
     """Write the corpus's branding over the software's neutral pages.
 
@@ -534,6 +556,8 @@ def brand_site(out: Path, assets: list[Path]) -> None:
         if target.is_symlink() or target.exists():
             remove(target)
         target.symlink_to(site["logo"].resolve())
+    (out / "manifest.webmanifest").write_text(site_config.web_manifest(site), encoding="utf-8")
+    rasterise_icons(out / "logo.svg", out)
     logger.success(f"site {site['id']!r} ({site['name']}): languages "
                    f"{', '.join(site['languages'])}, string overlays for "
                    f"{', '.join(strings) or 'none'}"

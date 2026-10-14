@@ -179,6 +179,41 @@ def render_page(template: str, values: dict[str, str]) -> str:
     return PLACEHOLDER.sub(fill, template)
 
 
+# The PNG icons `web_manifest` lists, file name to edge in pixels, which stage.py
+# rasterises from the site's logo. 192 and 512 are the two sizes Chrome requires
+# before it offers to install; 180 is the one iOS reads from <link rel="apple-touch-icon">,
+# which ignores the manifest's icons and SVG alike.
+ICONS = {"icon-192.png": 192, "icon-512.png": 512, "apple-touch-icon.png": 180}
+# The icons' backdrop and the installed window's colours: the light theme's --bg in
+# src/app.css. A transparent icon would be laid on black by iOS.
+ICON_BACKGROUND = "#ffffff"
+
+
+def web_manifest(site: dict[str, Any]) -> str:
+    """The body of `manifest.webmanifest`, which makes the site installable as an app.
+
+    Every URL in it is relative, and a manifest resolves them against its own URL,
+    so the site installs the same whether it is served at a domain's root or under
+    a path. There is no service worker: no current browser requires one to install,
+    and a cached copy of the index or the PDFs is exactly what the Cache-Control
+    note in docker/Caddyfile rules out.
+    """
+    payload = {
+        "name": site["name"],
+        "short_name": site["name"],
+        "description": site["description"],
+        "lang": site["default_language"],
+        "start_url": "./",
+        "scope": "./",
+        "display": "standalone",
+        "background_color": ICON_BACKGROUND,
+        "theme_color": ICON_BACKGROUND,
+        "icons": [{"src": name, "sizes": f"{size}x{size}", "type": "image/png"}
+                  for name, size in ICONS.items() if name.startswith("icon-")],
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=1) + "\n"
+
+
 def site_script(site: dict[str, Any], strings: dict[str, dict[str, str]]) -> str:
     """The body of `site-config.js`: `window.__SITE__`, everything the pages read."""
     payload = {key: site[key] for key in
