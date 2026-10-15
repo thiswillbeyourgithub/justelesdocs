@@ -17,7 +17,7 @@
 # this image and nothing is built at install time.
 #
 # Written by Claude Code (Opus 5).
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Runs as the host UID (docker-compose.yml sets `user:`), so nothing here may
 # depend on being root at runtime. Read-only rootfs: the service writes nothing
