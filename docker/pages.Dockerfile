@@ -17,7 +17,8 @@
 # this image and nothing is built at install time. --no-deps because pymupdf 2.0
 # requires the layout model's stack (onnxruntime, numpy, networkx, pymupdf4llm),
 # which cutting a page never touches and which costs 180 MB of image and 70 MB of
-# resident memory the moment `import pymupdf` loads it.
+# resident memory the moment `import pymupdf` loads it. 1.28.2 has no
+# dependencies, so the flag only matters from the next bump on.
 #
 # Written by Claude Code (Opus 5).
 FROM python:3.14-slim
@@ -34,8 +35,12 @@ WORKDIR /app
 # tests then exercise the version that serves, and `uv run server/pages.py`
 # locally runs it too. It used to be 1.24.14 here while everything else floated
 # to the latest, so the suite was testing a library production did not run.
-# To bump: change every pin together, then run tests/run.py and the build chain.
-ARG PYMUPDF_VERSION=2.0
+# To bump: change every pin together, then run tests/run.py and the build chain,
+# and diff a sample of rechunked documents against data/chunks/. 2.0 was tried on
+# 2026-10-22 and backed out: its Table.extract() drops the spaces between words
+# ("Maltraitancesexuelle") and puts punctuation on lines of its own, which every
+# ruled table the chunker reads goes through. Plain get_text() was unchanged.
+ARG PYMUPDF_VERSION=1.28.2
 RUN pip install --no-cache-dir --no-compile --no-deps pymupdf==${PYMUPDF_VERSION}
 
 COPY server/pages.py /app/server/pages.py

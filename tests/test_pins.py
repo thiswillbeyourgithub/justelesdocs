@@ -15,6 +15,7 @@ import re
 from conftest import ROOT
 
 HEADER_PIN = re.compile(r'^# dependencies = \[.*?"pymupdf(?P<spec>[^"]*)"', re.M)
+LAYOUT_PIN = re.compile(r'^# dependencies = \[.*?"pymupdf-layout(?P<spec>[^"]*)"', re.M)
 DOCKER_PIN = re.compile(r"^ARG PYMUPDF_VERSION=(?P<version>\S+)$", re.M)
 
 
@@ -30,3 +31,12 @@ def test_every_pymupdf_pin_is_the_same_exact_version():
     assert "server/pages.py" in pins and "scripts/chunk.py" in pins and "tests/run.py" in pins
     assert all(spec.startswith("==") for spec in pins.values()), pins
     assert len(set(pins.values())) == 1, pins
+
+
+def test_pymupdf_layout_is_pinned_to_pymupdfs_version():
+    """Unpinned, pymupdf-layout resolved to 2.0, an empty package once pymupdf 2.0
+    absorbed the model, and `import pymupdf.layout` failed under pymupdf 1.28.2."""
+    chunk = (ROOT / "scripts" / "chunk.py").read_text(encoding="utf-8")
+    layout = LAYOUT_PIN.search(chunk)
+    assert layout, "scripts/chunk.py no longer names pymupdf-layout"
+    assert layout.group("spec") == HEADER_PIN.search(chunk).group("spec"), layout.group(0)

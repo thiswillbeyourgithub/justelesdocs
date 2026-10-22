@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["click", "loguru", "pymupdf==2.0"]
+# dependencies = ["click", "loguru", "pymupdf==1.28.2"]
 # ///
 """Build and refresh the guideline metadata manifest.
 

@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["click", "loguru", "pymupdf==2.0"]
+# dependencies = ["click", "loguru", "pymupdf==1.28.2"]
 # ///
 """Add a text layer to the corpus documents that lack one.
 
