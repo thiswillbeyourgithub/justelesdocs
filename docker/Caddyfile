@@ -44,6 +44,9 @@
 	rate_limit {
 		zone {args[0]} {
 			key {http.request.client_ip}
+			# One bucket per IPv6 /64, the block a single subscriber is handed: per
+			# address, the limit is as many buckets as the visitor cares to pick.
+			ipv6_prefix 64
 			events {args[1]}
 			window {args[2]}
 		}
@@ -202,6 +205,7 @@
 		rate_limit @pdf {
 			zone pdf {
 				key {http.request.client_ip}
+				ipv6_prefix 64
 				events {$PDF_RATE_EVENTS:300}
 				window {$PDF_RATE_WINDOW:1m}
 			}

@@ -32,16 +32,18 @@
 # (add `network: host` under the web service's `build:`) or build on a machine
 # with working egress and ship the image (`sudo docker save <SITE_ID>-web |
 # ssh VPS 'sudo docker load'`).
-ARG CADDY_VERSION=2
+# Pinned to a patch release so two builds agree; bump it on purpose. 2.11.6 is
+# the one to skip (an HTTP/2 proxy crash its successor fixed).
+ARG CADDY_VERSION=2.11.7
 
 FROM caddy:${CADDY_VERSION}-builder-alpine AS builder
-# Pinned to a released tag. Unpinned, `go get` resolves to the latest SemVer tag
-# at build time, which today is this same v0.1.0 (it is the module's only tag),
-# so the pin changes nothing about what is built and everything about whether two
-# builds a year apart agree. The module has commits after the tag; taking them
-# means naming a commit here on purpose, not drifting onto them by default.
+# Pinned to a commit, because v0.1.0 is still the module's only tag and the
+# commits after it carry `ipv6_prefix` (2026-05), which docker/Caddyfile needs:
+# without it a client holding an IPv6 /64 gets a fresh per-IP bucket for every
+# address it picks. Unpinned, `go get` would resolve to v0.1.0, so this is named
+# on purpose; move it to the next tag once there is one.
 RUN xcaddy build \
-	--with github.com/mholt/caddy-ratelimit@v0.1.0
+	--with github.com/mholt/caddy-ratelimit@5625512f24f6f59d6f64fb3aafe5eecff0b286db
 
 FROM caddy:${CADDY_VERSION}-alpine
 # Replace the stock binary with the plugin-enabled one; same path, so the base
