@@ -108,10 +108,10 @@ def cover(tmp_path, lines, *, name="cover.pdf"):
     Path
         The written PDF.
     """
-    import fitz
+    import pymupdf
 
     path = tmp_path / name
-    doc = fitz.open()
+    doc = pymupdf.open()
     page = doc.new_page()
     for top, size, text in lines:
         page.insert_text((60, top), text, fontsize=size)

@@ -14,10 +14,13 @@
 # pymupdf is the one dependency, and it is the same library scripts/chunk.py
 # used to produce the page geometry the highlights are drawn from. Pinned, and
 # installed from a wheel: it ships manylinux wheels, so there is no compiler in
-# this image and nothing is built at install time.
+# this image and nothing is built at install time. --no-deps because pymupdf 2.0
+# requires the layout model's stack (onnxruntime, numpy, networkx, pymupdf4llm),
+# which cutting a page never touches and which costs 180 MB of image and 70 MB of
+# resident memory the moment `import pymupdf` loads it.
 #
 # Written by Claude Code (Opus 5).
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Runs as the host UID (docker-compose.yml sets `user:`), so nothing here may
 # depend on being root at runtime. Read-only rootfs: the service writes nothing
@@ -32,8 +35,8 @@ WORKDIR /app
 # locally runs it too. It used to be 1.24.14 here while everything else floated
 # to the latest, so the suite was testing a library production did not run.
 # To bump: change every pin together, then run tests/run.py and the build chain.
-ARG PYMUPDF_VERSION=1.28.2
-RUN pip install --no-cache-dir --no-compile pymupdf==${PYMUPDF_VERSION}
+ARG PYMUPDF_VERSION=2.0
+RUN pip install --no-cache-dir --no-compile --no-deps pymupdf==${PYMUPDF_VERSION}
 
 COPY server/pages.py /app/server/pages.py
 

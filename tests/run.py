@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["click", "loguru", "numpy", "pytest", "pymupdf==1.28.2", "tokenizers"]
+# dependencies = ["click", "loguru", "numpy", "pytest", "pymupdf==2.0", "tokenizers"]
 # ///
 """Run the whole test suite: the Python half, then the JavaScript half.
 

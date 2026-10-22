@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["click", "loguru", "pymupdf==1.28.2", "pymupdf-layout", "tokenizers"]
+# dependencies = ["click", "loguru", "pymupdf==2.0", "tokenizers"]
 # ///
 """Split the guideline corpus into embeddable chunks with page and bbox provenance.
 
@@ -279,7 +279,7 @@ class ChunkSettings:
             Directory name of the tokenizer, standing for the model whose tokens
             the budget is counted in.
         table_layout : str or None
-            The pymupdf-layout version reading the tables, or None.
+            The pymupdf version whose layout model reads the tables, or None.
 
         Returns
         -------
@@ -337,7 +337,7 @@ def chunk_params(
     boundaries, sections, heading_tokens, page_chunks, section_chunks, tables
         The chunking policy, as `chunk_document` takes it.
     table_layout : str, optional
-        The pymupdf-layout version reading the tables, because a new model moves
+        The pymupdf version whose layout model reads the tables, because a new model moves
         grids and so changes text without changing anything else here.
 
     Returns

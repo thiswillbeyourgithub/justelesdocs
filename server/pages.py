@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["pymupdf==1.28.2"]
+# dependencies = ["pymupdf==2.0"]
 # ///
 """The page service: one page of a restricted document, cut out per request.
 

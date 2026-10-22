@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["click", "pymupdf==1.28.2"]
+# dependencies = ["click", "pymupdf==2.0"]
 # ///
 """Find the figures in the corpus, crop them, and keep a record of what a model read in them.
 

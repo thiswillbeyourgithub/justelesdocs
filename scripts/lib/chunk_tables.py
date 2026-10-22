@@ -566,9 +566,14 @@ def contents_listing(data: list[list[str]]) -> bool:
 
 
 def layout_version() -> str:
-    """The installed pymupdf-layout, whose model decides every grid it predicts."""
+    """The installed pymupdf, whose layout model decides every grid it predicts.
+
+    The model shipped as pymupdf-layout until pymupdf 2.0 moved it inside pymupdf
+    and left pymupdf-layout an empty package pinned to the same version, so
+    pymupdf's own version is the one that names the model.
+    """
     from importlib.metadata import version
-    return version("pymupdf-layout")
+    return version("pymupdf")
 
 
 class LayoutGrids:
