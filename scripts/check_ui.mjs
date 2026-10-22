@@ -1273,13 +1273,14 @@ if (target) {
 
   const geometry = await viewer.evaluate(async ({ file, pageNumber }) => {
     const pdfjs = await import("./vendor/pdfjs/pdf.mjs");
-    const doc = await pdfjs.getDocument(`pdf/${encodeURIComponent(file)}`).promise;
+    const doc = await pdfjs.getDocument({ url: `pdf/${encodeURIComponent(file)}` }).promise;
     const pdfPage = await doc.getPage(pageNumber);
     // scale 1: the same space the percentages are fractions of.
     const viewport = pdfPage.getViewport({ scale: 1 });
     const content = await pdfPage.getTextContent();
     const items = content.items.filter((i) => i.str.trim()).map((i) => {
-      const [x, baseline] = pdfjs.Util.applyTransform([i.transform[4], i.transform[5]], viewport.transform);
+      // Not Util.applyTransform: since pdf.js 5 it rewrites its argument and returns nothing.
+      const [x, baseline] = viewport.convertToViewportPoint(i.transform[4], i.transform[5]);
       return { str: i.str, x0: x, x1: x + i.width, top: baseline - i.height, bottom: baseline };
     });
     const boxes = [...document.querySelectorAll("#layer > .best")].map((el) => ({

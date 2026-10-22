@@ -411,12 +411,13 @@ async function documentFor(pageNumber, token) {
   // already hold its own page in `pdf`: replacing it here would destroy the document
   // that render is drawing from. Two quick steps finishing out of order did exactly that.
   if (token !== renderToken) {
-    next.destroy();
+    next.loadingTask.destroy();
     return null;
   }
-  // Destroyed rather than dropped: each of these holds a worker-side document, and a
+  // Destroyed rather than dropped (through its loadingTask: pdf.js 6 took destroy()
+  // off the document itself): each of these holds a worker-side document, and a
   // reader stepping through a chapter would otherwise leave one behind per page.
-  if (pdf) pdf.destroy();
+  if (pdf) pdf.loadingTask.destroy();
   pdf = next;
   loadedPage = pageNumber;
   return pdf;
@@ -492,7 +493,7 @@ async function passageText() {
     try {
       parts.push(passageOf(await runsOf(await holder.getPage(1), n)));
     } finally {
-      if (!held) holder.destroy();
+      if (!held) holder.loadingTask.destroy();
     }
   }
   return parts.filter(Boolean).join("\n\n");
