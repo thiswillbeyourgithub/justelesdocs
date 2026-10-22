@@ -71,9 +71,9 @@ class Vendored:
 
 PDFJS = Vendored(
     name="pdfjs",
-    version="4.10.38",
-    url="https://github.com/mozilla/pdf.js/releases/download/v4.10.38/pdfjs-4.10.38-dist.zip",
-    sha256="32bdd9c5198b77dbaa8f02de81f34476888b3abdd64b9fb5f607f81f01487e6a",
+    version="6.4.299",
+    url="https://github.com/mozilla/pdf.js/releases/download/v6.4.299/pdfjs-6.4.299-dist.zip",
+    sha256="f2245eb7ef3f674c872fe568a177bfec15874f5c034613e55d8e307f93ebd86d",
     members=(
         # The API and its worker. Both are ES modules; app code sets
         # GlobalWorkerOptions.workerSrc to the second one, served same-origin so
@@ -84,6 +84,16 @@ PDFJS = Vendored(
         # faces without embedding it. Several of the older French documents do.
         # Without these, such pages render with wrong metrics or not at all.
         "web/standard_fonts/",
+        # Since pdf.js 5, the JPEG 2000 and JBIG2/CCITT decoders (the codecs of most
+        # scanned pages) are WebAssembly modules loaded from `wasmUrl`, each with a
+        # plain-JS twin. Only the twins ship: viewer.js passes `useWasm: false`, so the
+        # CSP needs no 'wasm-unsafe-eval', and 4.x decoded these in JS anyway.
+        "web/wasm/openjpeg_nowasm_fallback.js",
+        "web/wasm/jbig2_nowasm_fallback.js",
+        "web/wasm/LICENSE_OPENJPEG",
+        "web/wasm/LICENSE_PDFJS_OPENJPEG",
+        "web/wasm/LICENSE_JBIG2",
+        "web/wasm/LICENSE_PDFJS_JBIG2",
         # Apache 2.0 requires the licence to travel with the code.
         "LICENSE",
     ),

@@ -174,7 +174,7 @@ const prefetcher = prefetchAllowed(navigator.connection)
 /**
  * Queue what a click on this answer would need.
  *
- * The viewer's own module and worker first, because they are 2.8 MB that every
+ * The viewer's own module and worker first, because they are 3.1 MB that every
  * click needs and no click can start without; then the PDFs of the few top results,
  * because that is where a click usually lands. Bounded by PREFETCH_DOCS and by the
  * queue's own byte budget, so a list full of 10 MB argumentaires cannot turn reading

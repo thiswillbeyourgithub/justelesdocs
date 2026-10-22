@@ -8,7 +8,7 @@ The section titles are cited from code comments and other docs. Rename one only 
 
 ### Page rendering: pdf.js, client-side
 
-A hit is shown as the PDF page itself, rendered in the browser by pdf.js. Pre-rendered page images were rejected: they cost disk on a small server, lose the text layer (selection, search, accessibility) and need a second component for the whole-document view. One viewer component serves both the single page and the whole document. pdf.js runs with `isEvalSupported: false` and a same-origin worker, and is vendored by `scripts/vendor.py` from a pinned archive whose SHA-256 is verified and whose members are allow-listed. The CSP stays `default-src 'self'`, plus `blob:` for `worker-src` and `img-src`, `object-src 'none'`, and no `wasm-unsafe-eval`.
+A hit is shown as the PDF page itself, rendered in the browser by pdf.js. Pre-rendered page images were rejected: they cost disk on a small server, lose the text layer (selection, search, accessibility) and need a second component for the whole-document view. One viewer component serves both the single page and the whole document. pdf.js runs with `isEvalSupported: false` and a same-origin worker, and is vendored by `scripts/vendor.py` from a pinned archive whose SHA-256 is verified and whose members are allow-listed. The CSP stays `default-src 'self'`, plus `blob:` for `worker-src` and `img-src`, `object-src 'none'`, and no `wasm-unsafe-eval`: since pdf.js 5 its JPEG 2000 and JBIG2 decoders are WebAssembly by default, so it runs with `useWasm: false` and only their plain-JS twins are vendored.
 
 ### OCR: a local preprocessing step, and the OCR'd file is the one we serve
 

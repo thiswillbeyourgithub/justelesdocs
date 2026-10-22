@@ -60,7 +60,7 @@ export function pageHref(docId, page) {
 /**
  * The viewer's own downloads, in the order they are needed.
  *
- * 2.8 MB between them, fetched on the first click into the viewer and reused from
+ * 3.1 MB between them, fetched on the first click into the viewer and reused from
  * cache on every click after. Naming them here is what lets the result list warm
  * them while the reader is still reading (see prefetch.js); viewer.js imports pdf.js
  * by module specifier rather than from this list, because an import is an import.

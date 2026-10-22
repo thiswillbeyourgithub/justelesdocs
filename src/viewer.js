@@ -96,6 +96,18 @@ function backHref() {
 }
 
 let pdfjs = null;        // the pdf.js module, kept for its TextLayer
+// What every getDocument call passes beside its url. The standard fonts: without them
+// a PDF that references a standard-14 face without embedding it renders with wrong
+// metrics, and several older French documents do. The image decoders: absolute,
+// because the worker imports them and a relative URL would resolve against the
+// worker's own path; and as JS rather than WebAssembly, which the CSP does not allow.
+// No eval either: the CSP refuses it, and pdf.js would otherwise probe for it.
+const DOC_OPTIONS = {
+  isEvalSupported: false,
+  standardFontDataUrl: "vendor/pdfjs/standard_fonts/",
+  wasmUrl: new URL("vendor/pdfjs/wasm/", document.baseURI).href,
+  useWasm: false,
+};
 let pdf = null;          // pdf.js document
 let meta = null;         // index meta.json
 let doc = null;          // this document's entry
@@ -394,10 +406,7 @@ async function renderText(pdfPage, cssViewport, token) {
 async function documentFor(pageNumber, token) {
   if (!isRestricted(doc)) return pdf;
   if (pdf && loadedPage === pageNumber) return pdf;
-  const next = await pdfjs.getDocument({
-    url: pageHref(docId, pageNumber),
-    standardFontDataUrl: "vendor/pdfjs/standard_fonts/",
-  }).promise;
+  const next = await pdfjs.getDocument({ ...DOC_OPTIONS, url: pageHref(docId, pageNumber) }).promise;
   // A newer render asked for another page while this one was downloading, and it may
   // already hold its own page in `pdf`: replacing it here would destroy the document
   // that render is drawing from. Two quick steps finishing out of order did exactly that.
@@ -479,9 +488,7 @@ async function passageText() {
     // The page on screen is already loaded; any other is cut by the page service
     // into a document of its own, destroyed once read so `pdf` is left untouched.
     const held = pdf && loadedPage === n;
-    const holder = held ? pdf : await pdfjs.getDocument({
-      url: pageHref(docId, n), standardFontDataUrl: "vendor/pdfjs/standard_fonts/",
-    }).promise;
+    const holder = held ? pdf : await pdfjs.getDocument({ ...DOC_OPTIONS, url: pageHref(docId, n) }).promise;
     try {
       parts.push(passageOf(await runsOf(await holder.getPage(1), n)));
     } finally {
@@ -694,12 +701,7 @@ function refreshChrome() {
     // own count wins over the manifest's if the two ever disagree.
     pageCount = Math.max(1, Number(doc.pages) || 1);
     if (!isRestricted(doc)) {
-      pdf = await pdfjs.getDocument({
-        url: pdfHref(doc),
-        // Without this, a PDF that references a standard-14 face without embedding
-        // it renders with wrong metrics. Several older French documents do.
-        standardFontDataUrl: "vendor/pdfjs/standard_fonts/",
-      }).promise;
+      pdf = await pdfjs.getDocument({ ...DOC_OPTIONS, url: pdfHref(doc) }).promise;
       pageCount = pdf.numPages;
     }
     await render();
