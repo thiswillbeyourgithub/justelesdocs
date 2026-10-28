@@ -23,7 +23,7 @@
 # LTS major; bump deliberately, and re-run tests/run.py under the new one first.
 #
 # Written by Claude Code (Fable 5.1).
-FROM node:22-alpine
+FROM node:26-alpine
 
 # Runs as the host UID (docker-compose.yml sets `user:`), so nothing here may
 # depend on being root at runtime. Read-only rootfs, no writable path needed:
