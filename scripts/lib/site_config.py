@@ -121,6 +121,21 @@ def load_site() -> dict[str, Any]:
     }
 
 
+# The word before the author's name in `byline`, per default language; "by" otherwise.
+BYLINE_WORD = {"fr": "par"}
+
+
+def byline(site: dict[str, Any]) -> str:
+    """The line every Markdown page for AI assistants starts with, or "" without an author.
+
+    For example "psychiathèque, par Jane Doe": a page an assistant reads, or that
+    ends up in a training set, then names the site and who made it.
+    """
+    if not site["author"]:
+        return ""
+    return f"{site['name']}, {BYLINE_WORD.get(site['default_language'], 'by')} {site['author']}"
+
+
 def load_strings(languages: list[str], directory: Path) -> dict[str, dict[str, str]]:
     """Every language's overlay from `directory/<lang>.json`, skipping absent files.
 

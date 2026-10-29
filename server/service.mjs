@@ -53,7 +53,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadIndexFromDisk, rssMb, RANKER_SHA } from "./load.mjs";
 import { createQueue } from "./queue.mjs";
-import { renderSearch, renderError, originOf } from "./markdown.mjs";
+import { renderSearch, renderError, originOf, withByline } from "./markdown.mjs";
 import { createTracker } from "./umami.mjs";
 import { readSearchParams, applyLevel, rankingOptions, LEVEL_ALL } from "../src/urlstate.js";
 
@@ -290,7 +290,7 @@ export function createSearchService({ search, index, floor = 0, depth = 24, text
       origin, query: params.toString() });
   }
 
-  return { answer, answerMarkdown, queue, dims, inFlight: () => inFlight };
+  return { answer, answerMarkdown, queue, dims, meta: index.meta, inFlight: () => inFlight };
 }
 
 /** HTTP status and body for one of the errors `answer` throws. */
@@ -428,14 +428,14 @@ async function sendMarkdown(service, req, res, log) {
   const params = new URL(req.url, "http://localhost").searchParams;
   try {
     const body = await service.answerMarkdown(params, { origin: originOf(req.headers.host), signal: controller.signal });
-    if (!res.writableEnded) { res.writeHead(200, headers); res.end(body); }
+    if (!res.writableEnded) { res.writeHead(200, headers); res.end(withByline(service.meta, body)); }
     log(`search.md 200 ${(performance.now() - started).toFixed(0)} ms`);
   } catch (error) {
     const [status, payload] = describeError(error);
     if (status === 499) return;
     if (!res.writableEnded) {
       res.writeHead(status, { ...headers, ...(status === 503 ? { "Retry-After": "2" } : {}) });
-      res.end(renderError(payload.error, payload));
+      res.end(withByline(service.meta, renderError(payload.error, payload)));
     }
     log(`search.md ${status} ${payload.error} ${(performance.now() - started).toFixed(0)} ms`);
   }

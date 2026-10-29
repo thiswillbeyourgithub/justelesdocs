@@ -54,6 +54,8 @@ Cette page, écrite par `stage.py` pour le corpus servi, indique à l'assistant 
 - `/api/doc/` : la liste des documents, puis une page Markdown par document (métadonnées, liens, premiers mots de chaque page) et une par page (son texte), écrites lors de la mise en place et servies comme fichiers statiques.
 - les liens de la visionneuse, pour donner à une personne le passage surligné sur sa page.
 
+Quand `corpus.toml` nomme un `[site] author`, chacune de ces pages Markdown commence par une signature comme « psychiathèque, par Jane Doe », pour qu'une page citée hors contexte nomme encore le site et son auteur.
+
 Deux boutons font la même chose pour un lecteur : « Copier pour une IA », dans le menu de la visionneuse, copie le passage, sa référence et ces liens, et celui au-dessus des résultats copie l'adresse Markdown de la recherche affichée.
 
 Le niveau `access: restricted` tient sa promesse ici aussi : un document restreint n'a ni page Markdown ni texte, et la recherche ne cite que le seul passage que la page montrerait. `check_served.py` refuse une mise en place où le texte d'un document restreint apparaîtrait sous `api/doc/`. `robots.txt` demande aux robots d'indexation de ne pas visiter `/api/`, tout en y laissant entrer les agents avec lesquels un assistant lit une page quand une personne le lui demande (Claude-User, ChatGPT-User, etc.), et chaque réponse Markdown porte `X-Robots-Tag: noindex`.

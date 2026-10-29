@@ -209,7 +209,9 @@ default_language = "fr"
 # author it names (else no author line), and a logo.svg relative to this file
 # (else the software's). The software is AGPL-3.0: a site running MODIFIED code
 # must point repo_url at that modified source, since the footer link is how its
-# readers get it.
+# readers get it. The author also heads every Markdown page for AI assistants
+# ("<name>, par <author>" on a French site), through meta.json: after changing it,
+# rerun build_index.py and stage.py.
 # repo_url = "https://github.com/you/your-fork"
 # author = "Your Name"
 # logo = "logo.svg"

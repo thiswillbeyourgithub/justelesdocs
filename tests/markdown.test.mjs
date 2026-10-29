@@ -9,7 +9,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const { renderSearch, originOf, metadataLine } = await import(`${root}/server/markdown.mjs`);
+const { renderSearch, originOf, metadataLine, withByline } = await import(`${root}/server/markdown.mjs`);
 const { apiDocHref } = await import(`${root}/src/paths.js`);
 
 const index = { docs: [
@@ -31,6 +31,12 @@ test("an open passage links to its page text; a restricted one does not", () => 
   assert.match(md, /Restricted document/);
   // A blank line inside the passage does not end the quote.
   assert.match(md, /> line one\n>\n> line two/);
+});
+
+test("the byline heads the answer when the index carries one (tests/test_llm_pages.py pins the static pages)", () => {
+  assert.equal(withByline({ byline: "Docs, par Jane Doe" }, "# Search: q\n"), "Docs, par Jane Doe\n\n# Search: q\n");
+  assert.equal(withByline({}, "# Search: q\n"), "# Search: q\n");
+  assert.equal(withByline(undefined, "# Search: q\n"), "# Search: q\n");
 });
 
 test("metadata prints the corpus's facets in order, lists joined, blanks left out", () => {

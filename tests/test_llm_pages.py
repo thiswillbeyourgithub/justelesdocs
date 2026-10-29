@@ -83,6 +83,27 @@ def test_a_document_that_becomes_restricted_loses_its_folder(built, llm_pages):
     assert not (www / "api" / "doc" / "Open doc").exists()
 
 
+def test_every_page_starts_with_the_byline_when_the_index_has_one(built, llm_pages):
+    index_dir, www, tiers = built
+    meta_path = index_dir / "meta.json"
+    meta = {**json.loads(meta_path.read_text(encoding="utf-8")), "byline": "Docs, par Jane Doe"}
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    llm_pages.stage_api_docs(index_dir, www, tiers, "")
+    pages = list((www / "api" / "doc").rglob("*.md"))
+    assert {p.name for p in pages} >= {"index.md", "not_found.md", "1.md"}
+    assert all(p.read_text(encoding="utf-8").startswith("Docs, par Jane Doe\n\n# ") for p in pages)
+    site = {"name": "Docs", "description": "", "url": "", "repo_url": "https://r"}
+    assert llm_pages.render_llms_txt(site, meta, tiers).startswith("# Docs, par Jane Doe\n")
+
+
+def test_the_byline_is_in_the_site_s_language_and_absent_without_an_author():
+    site_config = load_lib("site_config")
+    site = {"name": "Docs", "author": "Jane Doe", "default_language": "fr"}
+    assert site_config.byline(site) == "Docs, par Jane Doe"
+    assert site_config.byline({**site, "default_language": "en"}) == "Docs, by Jane Doe"
+    assert site_config.byline({**site, "author": ""}) == ""
+
+
 def test_llms_txt_lists_the_filters_and_the_restricted_tier(built, llm_pages):
     index_dir, _, tiers = built
     meta = json.loads((index_dir / "meta.json").read_text(encoding="utf-8"))

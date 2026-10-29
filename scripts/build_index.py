@@ -135,7 +135,7 @@ import click
 import numpy as np
 from loguru import logger
 
-from lib import corpus_config, manifest_io, vocabulary
+from lib import corpus_config, manifest_io, site_config, vocabulary
 from lib import manifest_policy
 from lib.corpus import in_corpus
 
@@ -1451,6 +1451,10 @@ def main(chunks: Path, vectors: Path, manifest: Path, out: Path, dims: int,
         "tier_field": policy["tier_field"],
         "facet_fields": policy["facet_fields"],
         "range_fields": policy["range_fields"],
+        # What every Markdown page for AI assistants starts with (lib/llm_pages.py and
+        # server/markdown.mjs), carried here because the search service mounts nothing
+        # but the index. "" when [site] names no author.
+        "byline": site_config.byline(site_config.load_site()),
         "documents": [
             {"id": i, "file": d.file, "chunk_offset": d.chunk_offset,
              "chunk_count": d.chunk_count,

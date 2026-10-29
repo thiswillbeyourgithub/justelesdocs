@@ -37,6 +37,18 @@ export function originOf(host) {
   return `${local ? "http" : "https"}://${host}`;
 }
 
+/**
+ * `body` under the index's byline (scripts/lib/site_config.py `byline`), when it
+ * carries one: the same first line scripts/lib/llm_pages.py gives the static pages.
+ *
+ * @param {object|undefined} meta - The loaded index's meta.json.
+ * @param {string} body
+ */
+export function withByline(meta, body) {
+  const line = meta && meta.byline;
+  return line ? `${line}\n\n${body}` : body;
+}
+
 /** Collapse a cell's `;`-separated values to a readable list. */
 const cell = (value) => String(value ?? "").split(";").map((v) => v.trim()).filter(Boolean).join(", ");
 

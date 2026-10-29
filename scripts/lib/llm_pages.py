@@ -48,6 +48,12 @@ PAGE_PREVIEW_CHARS = 90
 FIGURE_NOTE = "[Figure description, written by an AI model from the image, not the document's own words]"
 
 
+def with_byline(meta: dict, body: str) -> str:
+    """`body` under the index's byline (lib/site_config.byline), when it carries one."""
+    line = meta.get("byline", "")
+    return f"{line}\n\n{body}" if line else body
+
+
 def stem_of(file: str) -> str:
     """The name a document's pages live under: its file name without `.pdf`."""
     return file[:-4] if file.lower().endswith(".pdf") else file
@@ -210,12 +216,12 @@ def stage_api_docs(index_dir: Path, www: Path, tiers: dict[str, str], site_url: 
         pages = page_texts(chunks, page_count)
         folder = root / stem_of(doc["file"])
         keep.add(folder)
-        changed += write_if_changed(folder / "index.md",
-                                    render_doc_index(doc, pages, page_count, fields, separator, at))
+        changed += write_if_changed(folder / "index.md", with_byline(
+            meta, render_doc_index(doc, pages, page_count, fields, separator, at)))
         wanted = {f"{page}.md" for page in pages}
         for page, passages in pages.items():
-            changed += write_if_changed(folder / "p" / f"{page}.md",
-                                        render_page(doc, page, passages, max(page_count, page), at))
+            changed += write_if_changed(folder / "p" / f"{page}.md", with_byline(
+                meta, render_page(doc, page, passages, max(page_count, page), at)))
         for stale in (folder / "p").glob("*") if (folder / "p").is_dir() else ():
             if stale.name not in wanted:
                 stale.unlink()
@@ -225,10 +231,12 @@ def stage_api_docs(index_dir: Path, www: Path, tiers: dict[str, str], site_url: 
     intro = ("Every document this site serves. Open documents link to their text, one "
              "Markdown page per PDF page. Restricted ones are only readable by a person, "
              "page by page, in the viewer.")
-    write_if_changed(root / "index.md", f"# Documents\n\n{intro}\n\n" + "\n".join(listing) + "\n")
-    write_if_changed(root / "not_found.md", "# Not found\n\nNo document or page at this address. "
-                     "The documents are listed below; a page number past the end of a "
-                     f"document has no page either.\n\n{intro}\n\n" + "\n".join(listing) + "\n")
+    write_if_changed(root / "index.md", with_byline(
+        meta, f"# Documents\n\n{intro}\n\n" + "\n".join(listing) + "\n"))
+    write_if_changed(root / "not_found.md", with_byline(
+        meta, "# Not found\n\nNo document or page at this address. "
+        "The documents are listed below; a page number past the end of a "
+        f"document has no page either.\n\n{intro}\n\n" + "\n".join(listing) + "\n"))
     # A document removed, renamed or restricted since the last stage: its folder goes.
     for entry in root.iterdir():
         if entry.is_dir() and entry not in keep:
@@ -274,7 +282,8 @@ def render_llms_txt(site: dict, meta: dict, tiers: dict[str, str]) -> str:
     example = at("api/search.md?q=" + quote("first-line treatment", safe=""))
 
     sections = [
-        f"# {site['name']}",
+        # The llmstxt.org format wants the name as the H1, so the byline is the H1.
+        f"# {meta.get('byline') or site['name']}",
         "",
         f"> {site['description']} {len(documents)} documents (PDF), searchable together by "
         "meaning across languages: a question in one language finds passages in another. "
