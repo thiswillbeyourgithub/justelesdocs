@@ -54,7 +54,7 @@ Cette page, écrite par `stage.py` pour le corpus servi, indique à l'assistant 
 - `/api/doc/` : la liste des documents, puis une page Markdown par document (métadonnées, liens, premiers mots de chaque page) et une par page (son texte), écrites lors de la mise en place et servies comme fichiers statiques.
 - les liens de la visionneuse, pour donner à une personne le passage surligné sur sa page.
 
-Quand `corpus.toml` nomme un `[site] author`, chacune de ces pages Markdown commence par une signature comme « psychiathèque, par Jane Doe », pour qu'une page citée hors contexte nomme encore le site et son auteur.
+Quand `corpus.toml` nomme un `[site] author`, chacune de ces pages Markdown commence par une signature comme « psychiathèque, par Jane Doe (https://docs.example.org) » (l'adresse quand `[site] url` est renseigné), pour qu'une page citée hors contexte nomme encore le site, son auteur et où le trouver.
 
 Deux boutons font la même chose pour un lecteur : « Copier pour une IA », dans le menu de la visionneuse, copie le passage, sa référence et ces liens, et celui au-dessus des résultats copie l'adresse Markdown de la recherche affichée.
 

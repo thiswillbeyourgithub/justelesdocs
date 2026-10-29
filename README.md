@@ -54,7 +54,7 @@ That page, written by `stage.py` for the corpus being served, tells the assistan
 - `/api/doc/`: the list of documents, then one Markdown page per document (metadata, links, the first words of each page) and one per page (its text), written at stage time and served as static files.
 - the viewer links, for handing a person the passage highlighted on its page.
 
-When `corpus.toml` names an `[site] author`, every one of these Markdown pages starts with a byline such as "psychiathèque, par Jane Doe", so a page quoted out of context still names the site and its author.
+When `corpus.toml` names an `[site] author`, every one of these Markdown pages starts with a byline such as "psychiathèque, par Jane Doe (https://docs.example.org)" (the address when `[site] url` is set), so a page quoted out of context still names the site, its author and where to find it.
 
 Two buttons do the same for a reader: "Copy for an AI" in the viewer's menu copies the passage, its citation and these links, and the one above the results copies the Markdown address of the search on screen.
 

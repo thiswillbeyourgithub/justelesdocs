@@ -98,9 +98,10 @@ def test_every_page_starts_with_the_byline_when_the_index_has_one(built, llm_pag
 
 def test_the_byline_is_in_the_site_s_language_and_absent_without_an_author():
     site_config = load_lib("site_config")
-    site = {"name": "Docs", "author": "Jane Doe", "default_language": "fr"}
+    site = {"name": "Docs", "author": "Jane Doe", "default_language": "fr", "url": ""}
     assert site_config.byline(site) == "Docs, par Jane Doe"
     assert site_config.byline({**site, "default_language": "en"}) == "Docs, by Jane Doe"
+    assert site_config.byline({**site, "url": "https://x.org"}) == "Docs, par Jane Doe (https://x.org)"
     assert site_config.byline({**site, "author": ""}) == ""
 
 

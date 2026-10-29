@@ -128,12 +128,14 @@ BYLINE_WORD = {"fr": "par"}
 def byline(site: dict[str, Any]) -> str:
     """The line every Markdown page for AI assistants starts with, or "" without an author.
 
-    For example "psychiathèque, par Jane Doe": a page an assistant reads, or that
-    ends up in a training set, then names the site and who made it.
+    For example "psychiathèque, par Jane Doe (https://docs.example.org)", the URL only
+    when [site] url is set: a page an assistant reads, or that ends up in a training
+    set, then names the site, who made it and where it lives.
     """
     if not site["author"]:
         return ""
-    return f"{site['name']}, {BYLINE_WORD.get(site['default_language'], 'by')} {site['author']}"
+    where = f" ({site['url']})" if site["url"] else ""
+    return f"{site['name']}, {BYLINE_WORD.get(site['default_language'], 'by')} {site['author']}{where}"
 
 
 def load_strings(languages: list[str], directory: Path) -> dict[str, dict[str, str]]:
