@@ -506,9 +506,17 @@ def rasterise_icons(logo: Path, out: Path) -> None:
     so the installed app always wears the same mark as the tab. A few milliseconds
     with `rsvg-convert`, the rasteriser scripts/logo.py already relies on.
     """
-    for name, size in site_config.ICONS.items():
+    icons = [(name, size, 1.0) for name, size in site_config.ICONS.items()]
+    icons += [(name, size, site_config.MASKABLE_SCALE)
+              for name, size in site_config.MASKABLE_ICONS.items()]
+    for name, size, scale in icons:
+        # The logo drawn at `scale` of the edge, centred on a page of the full edge.
+        drawn = round(size * scale)
+        margin = str((size - drawn) // 2)
         try:
-            subprocess.run(["rsvg-convert", "--width", str(size), "--height", str(size),
+            subprocess.run(["rsvg-convert", "--page-width", str(size), "--page-height", str(size),
+                            "--width", str(drawn), "--height", str(drawn),
+                            "--left", margin, "--top", margin,
                             "--keep-aspect-ratio", "--background-color",
                             site_config.ICON_BACKGROUND, "--output", str(out / name), str(logo)],
                            check=True, capture_output=True)

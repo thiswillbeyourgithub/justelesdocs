@@ -208,6 +208,12 @@ def render_page(template: str, values: dict[str, str]) -> str:
 # before it offers to install; 180 is the one iOS reads from <link rel="apple-touch-icon">,
 # which ignores the manifest's icons and SVG alike.
 ICONS = {"icon-192.png": 192, "icon-512.png": 512, "apple-touch-icon.png": 180}
+# The same two sizes again for Android's adaptive icons (`"purpose": "maskable"`), which
+# crop the icon to a circle, squircle or the like. Only the central circle of 80% of the
+# edge is sure to show, so the logo is drawn at MASKABLE_SCALE of the edge, centred on a
+# full-bleed backdrop: without these, Android shrinks the plain icon into a white disc.
+MASKABLE_ICONS = {"icon-maskable-192.png": 192, "icon-maskable-512.png": 512}
+MASKABLE_SCALE = 0.7
 # The icons' backdrop and the installed window's colours: the light theme's --bg in
 # src/app.css. A transparent icon would be laid on black by iOS.
 ICON_BACKGROUND = "#ffffff"
@@ -233,7 +239,9 @@ def web_manifest(site: dict[str, Any]) -> str:
         "background_color": ICON_BACKGROUND,
         "theme_color": ICON_BACKGROUND,
         "icons": [{"src": name, "sizes": f"{size}x{size}", "type": "image/png"}
-                  for name, size in ICONS.items() if name.startswith("icon-")],
+                  for name, size in ICONS.items() if name.startswith("icon-")]
+                 + [{"src": name, "sizes": f"{size}x{size}", "type": "image/png",
+                     "purpose": "maskable"} for name, size in MASKABLE_ICONS.items()],
     }
     return json.dumps(payload, ensure_ascii=False, indent=1) + "\n"
 

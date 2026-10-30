@@ -143,8 +143,10 @@ def test_brand_site_makes_the_site_installable(stage, site_config, tmp_path):
     manifest = json.loads((out / "manifest.webmanifest").read_text(encoding="utf-8"))
     assert manifest["name"] == "justelesdocs"
     assert manifest["display"] == "standalone" and manifest["start_url"] == "./"
-    assert {icon["sizes"] for icon in manifest["icons"]} == {"192x192", "512x512"}
-    for name, size in site_config.ICONS.items():
+    sizes = {(icon["sizes"], icon.get("purpose", "any")) for icon in manifest["icons"]}
+    assert sizes == {(edge, purpose) for edge in ("192x192", "512x512")
+                     for purpose in ("any", "maskable")}
+    for name, size in {**site_config.ICONS, **site_config.MASKABLE_ICONS}.items():
         png = (out / name).read_bytes()
         assert png[:8] == b"\x89PNG\r\n\x1a\n"
         assert int.from_bytes(png[16:20], "big") == size
