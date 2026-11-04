@@ -69,8 +69,8 @@ services:
     # mounted file's exec bit is the host's, which is easy to lose over rsync.
     entrypoint: ["/bin/sh", "/usr/local/bin/entrypoint.sh"]
     # Not root, like the other two: Caddy serves a read-only tree on an
-    # unprivileged port and writes only to its tmpfs dirs, which Docker mounts
-    # world-writable (mode 1777), so nothing here needs uid 0. The ids are the
+    # unprivileged port and writes only to its tmpfs dirs, mounted world-writable
+    # (`mode=1777` below), so nothing here needs uid 0. The ids are the
     # host's for the same reason as below (bind mounts read as the deploying
     # user). APP_UID/APP_GID were SEARCH_UID/SEARCH_GID before they covered all
     # three services; the inner fallback keeps a docker/.env written before the
@@ -104,10 +104,21 @@ services:
     tmpfs:
       # Caddy needs a writable data/config dir even with no TLS to manage; /gen
       # holds the app-config.js the entrypoint renders at each startup.
-      - /tmp
-      - /config
-      - /data
-      - /gen
+      #
+      # `mode=1777` is REQUIRED on every tmpfs of a non-root service (here and
+      # below), never left to Docker's default. A bare `- /gen` is 1777 when the
+      # container is created, but Docker 29 remounts it root-owned 0755 when the
+      # restart policy restarts the container (a crash, or the daemon restarting
+      # during an unattended docker-ce upgrade). Measured on the VPS on
+      # 2026-11-04 with docker-ce 29.9.3: the entrypoint then dies on "can't
+      # create /gen/app-config.js: Permission denied" and the container
+      # restart-loops until it is recreated. /config and /data exist in the
+      # caddy image as root 0755, so without it Caddy could not write them even
+      # on a fresh start. tests/test_compose.py refuses a tmpfs with no mode.
+      - /tmp:mode=1777
+      - /config:mode=1777
+      - /data:mode=1777
+      - /gen:mode=1777
     cap_drop:
       - ALL
     cap_add:
@@ -198,7 +209,7 @@ services:
     pids_limit: 64
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:mode=1777
     cap_drop:
       - ALL
     security_opt:
@@ -258,7 +269,7 @@ services:
     pids_limit: 64
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:mode=1777
     cap_drop:
       - ALL
     security_opt:
@@ -313,7 +324,7 @@ services:
     pids_limit: 256
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:mode=1777
     cap_drop:
       - ALL
     security_opt:
